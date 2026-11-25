@@ -8,7 +8,7 @@
 | UI         | React + TypeScript, pdf.js for previews  |
 | PDF engine | MuPDF (AGPL) for redaction and text positions; `lopdf` (MIT) for page operations |
 | AI runtime | ONNX Runtime (CPU)                       |
-| NER model  | GLiNER (small/multilingual) for names, addresses, orgs |
+| NER model  | GLiNER multilingual v2.1 (Apache-2.0), ONNX fp16, via `gline-rs` + ONNX Runtime |
 | OCR        | Tesseract or PaddleOCR (ONNX)            |
 
 ## How the pieces talk
@@ -55,18 +55,25 @@ and metadata are not carried over yet.
    temp file. It is read back: any character under a box → the file is deleted
    and an error returned. Otherwise it is renamed into place.
 
+AI detection (`redact_ai_scan`) runs after the rules, in the background: the
+page text is cut into chunks of whole lines (~160 words), GLiNER looks for
+"person", "address" and any description the user types, and text a rule
+already matched is left to the rule. The model is found bundled with the app
+or in the app-data folder; otherwise the UI offers a one-time download, pinned
+to one revision and checked by SHA-256 (`commands/model.rs`).
+
 Building MuPDF on Windows needs LLVM (`.cargo/config.toml`) and a patched copy
 of the `mupdf` crate (`third_party/README.md`).
 
 ## Open decisions
 
 - [x] Open source or commercial? → **open source, AGPL-3.0-or-later, MuPDF** (decided 2026-11-25)
-- [ ] Document languages → choice of NER and OCR models
+- [x] Document languages → English, French, Dutch, Greek (multilingual GLiNER; OCR to pick)
 - [ ] Office → PDF support (requires bundling LibreOffice, ~300 MB) — v1 or later?
 
 ## Roadmap
 
 1. **MVP** — drag & drop, thumbnails, split, merge, reorder/rotate ✅ · PDF ↔ images (todo) · keep bookmarks (todo)
-2. **Redact** — manual + search redaction ✅, rule detection ✅, AI model (todo), OCR (todo)
+2. **Redact** — manual + search redaction ✅, rule detection ✅, AI model ✅, OCR (todo)
 3. **Edit** — annotations, add text/images, forms
 4. **Convert** — PDF → DOCX, optional Office → PDF

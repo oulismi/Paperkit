@@ -1,5 +1,5 @@
 // Typed wrappers around the Rust commands in src-tauri/src/commands.
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 export interface PdfInfo {
   path: string;
@@ -47,7 +47,9 @@ export interface Suggestion {
   text: string;
   label: string;
   category: Category;
-  source: "rule" | "search" | "manual";
+  source: "rule" | "search" | "manual" | "ai";
+  /** The model's probability, for AI findings. */
+  confidence?: number | null;
   areas: Area[];
 }
 
@@ -75,3 +77,25 @@ export const redactSearch = (path: string, query: string) => invoke<Suggestion[]
 
 export const redactApply = (path: string, output: string, areas: Area[], removeMetadata: boolean) =>
   invoke<RedactReport>("redact_apply", { path, output, areas, removeMetadata });
+
+/** Runs the on-device model. `defaults` = people and addresses; `extra` = the user's own descriptions. */
+export const redactAiScan = (path: string, defaults: boolean, extra: string[]) =>
+  invoke<Suggestion[]>("redact_ai_scan", { path, defaults, extra });
+
+// ---- AI model ----
+
+export interface ModelStatus {
+  state: "bundled" | "downloaded" | "missing";
+  downloadBytes: number;
+  name: string;
+}
+
+export const modelStatus = () => invoke<ModelStatus>("model_status");
+
+export function modelDownload(onProgress: (downloaded: number, total: number) => void) {
+  const progress = new Channel<{ downloaded: number; total: number }>();
+  progress.onmessage = (p) => onProgress(p.downloaded, p.total);
+  return invoke<void>("model_download", { progress });
+}
+
+export const modelDownloadCancel = () => invoke<void>("model_download_cancel");

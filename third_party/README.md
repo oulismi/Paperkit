@@ -8,3 +8,10 @@ used through `[patch.crates-io]` in the root `Cargo.toml`. One change, in
 bindings, so the alignment check uses `f64` (which is what `max_align_t` is on MSVC).
 
 Remove this folder and the patch entry once an upstream release builds on Windows.
+
+## esaxx-rs (0.1.10)
+
+Copy of `esaxx-rs` from crates.io (Apache-2.0), pulled in by `tokenizers` for the
+AI model. One change, in `build.rs`: it no longer forces the static C runtime
+(`/MT`) on Windows, which clashed with ONNX Runtime's dynamic runtime (`/MD`)
+at link time.

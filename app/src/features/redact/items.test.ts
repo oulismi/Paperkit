@@ -32,3 +32,12 @@ describe("mergeSuggestions", () => {
     expect(items[0].status).toBe("pending");
   });
 });
+
+describe("sourceText", () => {
+  it("describes AI confidence in words", async () => {
+    const { sourceText } = await import("./items");
+    expect(sourceText({ source: "ai", confidence: 0.91 })).toBe("AI, high confidence");
+    expect(sourceText({ source: "ai", confidence: 0.65 })).toBe("AI, medium confidence");
+    expect(sourceText({ source: "rule" })).toBe("rule match");
+  });
+});

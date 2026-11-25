@@ -4,9 +4,12 @@
 use std::path::PathBuf;
 
 use pdf_core::redact::{self, Area, PageSize, PageText, RedactOptions, RedactReport};
+use redact_ai::ner::Target;
 use redact_ai::{Category, Finding, Source};
 use serde::Serialize;
+use tauri::{AppHandle, Manager};
 
+use super::model::{self, ModelState};
 use super::pdf::{blocking, ensure_pdf};
 
 /// One occurrence of sensitive text on a page, with the boxes that cover it.
@@ -18,6 +21,7 @@ pub struct Suggestion {
     label: String,
     category: Category,
     source: Source,
+    confidence: Option<f32>,
     areas: Vec<Area>,
 }
 
@@ -40,6 +44,7 @@ fn to_suggestions(page: &PageText, findings: Vec<Finding>) -> impl Iterator<Item
             label: f.label,
             category: f.category,
             source: f.source,
+            confidence: f.confidence,
             areas,
         })
     })
@@ -54,6 +59,32 @@ pub async fn redact_scan(path: PathBuf) -> Result<ScanResult, String> {
         let pages_without_text = pages.iter().filter(|p| p.text.trim().is_empty()).map(|p| p.size.page).collect();
         let suggestions = pages.iter().flat_map(|p| to_suggestions(p, redact_ai::detect(&p.text))).collect();
         Ok(ScanResult { pages: pages.iter().map(|p| p.size.clone()).collect(), suggestions, pages_without_text })
+    })
+    .await
+}
+
+/// Runs the AI model over every page. `defaults` adds people and addresses;
+/// `extra` are the user's own descriptions ("patient name"). Text a format
+/// rule already matched is left to the rule.
+#[tauri::command]
+pub async fn redact_ai_scan(app: AppHandle, path: PathBuf, defaults: bool, extra: Vec<String>) -> Result<Vec<Suggestion>, String> {
+    ensure_pdf(&path)?;
+    let mut targets = if defaults { Target::defaults() } else { Vec::new() };
+    targets.extend(extra.iter().filter(|t| !t.trim().is_empty()).map(|t| Target::custom(t)));
+    blocking(move || {
+        let model = model::load(&app, &app.state::<ModelState>())?;
+        let pages = redact::page_texts(&path).map_err(|e| e.to_string())?;
+        let mut out = Vec::new();
+        for page in &pages {
+            let rules = redact_ai::detect(&page.text);
+            let ai: Vec<Finding> = model
+                .detect(&page.text, &targets)?
+                .into_iter()
+                .filter(|f| !rules.iter().any(|r| f.start < r.end && r.start < f.end))
+                .collect();
+            out.extend(to_suggestions(page, ai));
+        }
+        Ok(out)
     })
     .await
 }

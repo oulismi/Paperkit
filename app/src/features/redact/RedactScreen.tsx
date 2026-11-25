@@ -4,6 +4,7 @@ import { dirname, join } from "@tauri-apps/api/path";
 import { Icon } from "../../components/Icon";
 import {
   errorMessage,
+  redactAiScan,
   redactApply,
   redactScan,
   redactSearch,
@@ -11,7 +12,8 @@ import {
   type Category,
   type PageSize,
 } from "../../lib/tauri";
-import { CATEGORY_NAMES, SOURCE_NAMES, mergeSuggestions, pagesText, type Item } from "./items";
+import { AiCard, type AiRun } from "./AiCard";
+import { CATEGORY_NAMES, mergeSuggestions, pagesText, sourceText, type Item } from "./items";
 import { PageView } from "./PageView";
 
 interface Props {
@@ -38,6 +40,7 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
   const [removeMetadata, setRemoveMetadata] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+  const [aiRun, setAiRun] = useState<AiRun>({ state: "idle" });
 
   useEffect(() => {
     let live = true;
@@ -50,7 +53,8 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
         if (!live) return;
         setPages(r.pages);
         setNoText(r.pagesWithoutText);
-        setItems(mergeSuggestions([], r.suggestions, "pending"));
+        // Merge rather than replace: AI results may already have arrived.
+        setItems((list) => mergeSuggestions(list, r.suggestions, "pending"));
         setScan({ state: "done", ms: performance.now() - t0 });
       },
       (e) => live && setScan({ state: "failed", error: errorMessage(e) }),
@@ -79,6 +83,18 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
     const first = item.areas[0];
     if (!first) return;
     document.querySelector(`[data-page="${first.page}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  async function runAi(defaults: boolean, extra: string[], what: string) {
+    const t0 = performance.now();
+    setAiRun({ state: "running", what });
+    try {
+      const found = await redactAiScan(path, defaults, extra);
+      setItems((list) => mergeSuggestions(list, found, "pending"));
+      setAiRun({ state: "done", found: new Set(found.map((f) => `${f.label}|${f.text.toLowerCase()}`)).size, ms: performance.now() - t0 });
+    } catch (err) {
+      setAiRun({ state: "failed", error: errorMessage(err) });
+    }
   }
 
   async function find(e: React.FormEvent) {
@@ -210,7 +226,7 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
                 <button type="button" className="rd-item-text" onClick={() => focus(item)}>
                   <span className="rd-item-main">{item.text}</span>
                   <span className="muted rd-item-meta">
-                    {item.label} · {pagesText(item.pages)} · {SOURCE_NAMES[item.source]}
+                    {item.label} · {pagesText(item.pages)} · {sourceText(item)}
                     {item.status === "approved" && " · approved"}
                   </span>
                 </button>
@@ -221,6 +237,12 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
             ))}
           </div>
 
+          <AiCard
+            run={aiRun}
+            onReady={() => void runAi(true, [], "names and addresses")}
+            onLookFor={(d) => void runAi(false, [d], `“${d}”`)}
+          />
+
           <form className="field" onSubmit={find}>
             <label htmlFor="rd-find" className="field-label">Find &amp; redact text</label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -230,7 +252,6 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
               </button>
             </div>
             {searchNote && <span className="result">{searchNote}</span>}
-            <span className="result">Names and addresses will be found by the on-device AI model, coming next.</span>
           </form>
 
           <div className="panel-footer">

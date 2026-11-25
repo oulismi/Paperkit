@@ -20,3 +20,4 @@ strip = true
 # See third_party/README.md.
 [patch.crates-io]
 mupdf = { path = "third_party/mupdf" }
+esaxx-rs = { path = "third_party/esaxx-rs" }

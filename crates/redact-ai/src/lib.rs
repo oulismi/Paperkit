@@ -1,14 +1,19 @@
 //! Finds sensitive data in plain text.
 //!
-//! Today this is a set of exact-format rules ([`rules`]): emails, phone numbers,
-//! IBANs, payment cards, labelled ID numbers and dates, each checked with its
-//! checksum where one exists. Names and addresses need the on-device NER model,
-//! which is the next step.
+//! Two detectors:
+//! - [`rules`]: exact formats (emails, phone numbers, IBANs, payment cards,
+//!   national and labelled ID numbers, dates) in English, French, Dutch and
+//!   Greek, each checked with its checksum where one exists;
+//! - `ner` (feature `ner`): an on-device GLiNER model for names, addresses and
+//!   anything the user describes in words.
 //!
 //! Detection only *suggests*. The user reviews every finding before anything is
 //! removed from a document.
 
 pub mod rules;
+
+#[cfg(feature = "ner")]
+pub mod ner;
 
 use serde::Serialize;
 
@@ -32,6 +37,8 @@ pub enum Source {
     Rule,
     /// The user searched for this text.
     Search,
+    /// The on-device NER model found it.
+    Ai,
 }
 
 /// One piece of sensitive text: `text[start..end]` (byte offsets).
@@ -44,6 +51,8 @@ pub struct Finding {
     pub label: String,
     pub category: Category,
     pub source: Source,
+    /// The model's probability, for AI findings.
+    pub confidence: Option<f32>,
 }
 
 /// Runs every rule over `text` and returns non-overlapping findings in text order.
@@ -78,6 +87,7 @@ pub fn search(text: &str, needle: &str) -> Vec<Finding> {
             label: format!("\u{201c}{needle}\u{201d}"),
             category: Category::Custom,
             source: Source::Search,
+            confidence: None,
         })
         .collect()
 }

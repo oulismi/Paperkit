@@ -45,11 +45,15 @@ paperkit/
 Working now:
 - Drag & drop or browse PDFs, page thumbnails, reorder by dragging, rotate, remove
 - **Split** (every N pages, custom ranges, at selected pages), **Merge**, **Extract**
-- **Redact**: finds emails, phone numbers, IBANs, card numbers, labelled IDs and dates
-  (format rules with checksums); find-and-redact text; draw boxes; review and approve;
-  saves a new copy with the content really removed (MuPDF), then verifies it
+- **Redact**:
+  - format rules with checksums (English, French, Dutch, Greek): emails, phones, IBANs, cards,
+    national IDs (FR NIR, GR ΑΜΚΑ), labelled IDs (BSN, ΑΦΜ, tax/VAT/passport/case numbers…), dates
+  - on-device AI (GLiNER multilingual) for names, addresses and anything described in words
+    ("patient name"); downloaded once on first use (~596 MB), then fully offline
+  - find-and-redact text, draw boxes, review and approve; saves a new copy with the content
+    really removed (MuPDF), then verifies it
 
-Next: the on-device AI model for names and addresses, OCR for scanned pages. Edit and Convert
+Next: OCR for scanned pages; an "offline" installer with the AI model bundled. Edit and Convert
 are placeholders.
 
 ## Prerequisites
@@ -58,6 +62,7 @@ are placeholders.
 - Rust (stable) via https://rustup.rs
 - LLVM (libclang, clang-cl) to build MuPDF — Windows: `winget install LLVM.LLVM`
   (see `.cargo/config.toml`); the first build compiles MuPDF and takes a few minutes
+- Windows: Visual Studio **2022** Build Tools, C++ workload (ONNX Runtime needs its C++ library)
 - Tauri OS dependencies: https://tauri.app/start/prerequisites/
   (Windows: WebView2 + "Desktop development with C++" build tools)
 
@@ -76,6 +81,10 @@ Sample PDFs with fictional content are in `tests/fixtures/`; regenerate them wit
 
 ```sh
 cargo test -p pdf-core -p redact-ai   # PDF engine, redaction, detection rules
+
+# AI model test (downloads ~596 MB into models/ once):
+node scripts/fetch-model.mjs
+PAPERKIT_MODEL_DIR=models/gliner_multi-v2.1 cargo test -p redact-ai --features ner --release -- --ignored
 cd app && npm test       # split planning logic
 npm run typecheck
 ```

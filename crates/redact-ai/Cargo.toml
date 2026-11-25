@@ -8,3 +8,10 @@ license.workspace = true
 [dependencies]
 regex = "1"
 serde = { version = "1", features = ["derive"] }
+gline-rs = { version = "1.1", optional = true }
+orp = { version = "1", optional = true }
+
+[features]
+# The on-device NER model (GLiNER via ONNX Runtime). Off by default so the
+# rule tests build fast; the app turns it on.
+ner = ["dep:gline-rs", "dep:orp"]
