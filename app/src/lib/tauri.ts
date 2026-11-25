@@ -164,3 +164,8 @@ export const editApply = (path: string, output: string, ops: EditOp[], fields: R
   invoke<void>("edit_apply", { path, output, ops, fields });
 export const readImage = (path: string) => invoke<ArrayBuffer>("read_image", { path });
 export const editFont = () => invoke<ArrayBuffer>("edit_font");
+
+// ---- First-launch AI offer ----
+
+export const aiOffer = () => invoke<{ show: boolean; startDownload: boolean }>("ai_offer");
+export const aiOfferDecline = () => invoke<void>("ai_offer_decline");

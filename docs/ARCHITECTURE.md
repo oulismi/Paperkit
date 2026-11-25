@@ -95,6 +95,40 @@ does not remove; the UI says so and points to Redact). Forms: MuPDF widgets.
 OCR note: MuPDF's Tesseract/Leptonica can't run on two threads at once, so all
 OCR goes through one process-wide lock (`OcrPdf`).
 
+## Shell: drop bubble, tray, autostart
+
+`app/src-tauri/src/shell.rs`. Two windows: `main` and `bubble` (transparent,
+undecorated, always on top, not in the taskbar; a second page, `bubble.html`).
+The bubble grows its window to show its menu, picking the direction away from
+the nearest screen edges, and shrinks back to its spot. Its position is saved
+(logical coordinates) in `settings.json` in the app config folder and checked
+against the connected screens at start. A dropped file goes to the main window
+through `open_in_main` → stored request + `paperkit://open` event →
+`take_open_request` (so it also works before the main window has loaded).
+While a file is dragged near the bubble, its window grows into a 260 px ring
+(stepping inward near screen edges); Tauri's drag-over positions pick the
+segment, and the drop runs that segment's action (centre = full list). The glass
+is drawn in CSS: OS blur effects only fill rectangular windows and stutter while
+dragging. The mark (a page with a redacted line) is shared by the bubble,
+sidebar and app/tray icon (`app-icon.svg`, `src/components/Mark.tsx`).
+
+AI model offer: on launch, `ai_offer` says whether Home shows the card (model
+missing and not declined) or starts the download at once (the Windows installer
+left `download-ai-model.flag` next to the app: `windows/hooks.nsh` asks a yes/no
+question after installing; the installer itself downloads nothing).
+
+Tray: open, show/hide bubble, start with the system (`tauri-plugin-autostart`,
+launched with `--background`: tray and bubble only), quit. Closing the main
+window hides it. `tauri-plugin-single-instance` turns a second launch into
+"show the running one".
+
+## Packaging
+
+GitHub Actions + `tauri-action`; bundled assets are fetched (pinned, hashed)
+before building. The offline variant adds the AI model as a resource
+(`tauri.offline.conf.json`), found by `commands/model.rs` before the download
+folder. Not code-signed yet; macOS builds are ad-hoc signed.
+
 ## Open decisions
 
 - [x] Open source or commercial? → **open source, AGPL-3.0-or-later, MuPDF** (decided 2026-11-25)

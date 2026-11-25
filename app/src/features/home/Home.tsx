@@ -1,5 +1,6 @@
 import { Icon } from "../../components/Icon";
 import { TOOLS, type ToolId } from "../../app/tools";
+import { AiWelcome } from "./AiWelcome";
 
 interface Props {
   onBrowse: () => void;
@@ -13,6 +14,8 @@ export function Home({ onBrowse, onTool }: Props) {
         <h1>Drop a PDF to get started</h1>
         <p className="lead">Choose a tool after dropping, or pick one first.</p>
       </div>
+
+      <AiWelcome />
 
       <div className="dropzone">
         <div className="dropzone-icon">

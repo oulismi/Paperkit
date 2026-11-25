@@ -304,3 +304,15 @@ svg { flex: none; }
 .ed-swatch { width: 26px; height: 26px; border-radius: 99px; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border-strong); }
 .ed-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
 .ed-fields { display: flex; flex-direction: column; gap: 10px; max-height: 30vh; overflow-y: auto; }
+
+/* ---- First-launch AI offer (Home) ---- */
+.ai-welcome {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px; padding: 18px 20px;
+  background: #faf5ff; border: 1px solid var(--ai-border); border-radius: 14px;
+}
+.ai-welcome-icon { flex: none; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--ai-soft); color: var(--ai); }
+.ai-welcome-body { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ai-welcome-body h2 { font-size: 16px; }
+.ai-welcome-body p { font-size: 14px; line-height: 1.5; color: var(--text-2); max-width: 70ch; }
+.ai-welcome-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ai-welcome .ai-progress { max-width: 420px; }

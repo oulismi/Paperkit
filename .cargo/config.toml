@@ -1,10 +1,11 @@
-# Windows: MuPDF's Rust wrapper (mupdf-sys) uses C23 syntax that MSVC's C
-# compiler rejects, so C is compiled with clang-cl from LLVM, which bindgen
-# needs anyway (libclang). Install LLVM with: winget install LLVM.LLVM
-# CC_x86_64_pc_windows_msvc only affects that target; LIBCLANG_PATH is ignored
-# on platforms where libclang is found on its own.
+# Windows only. MuPDF's Rust wrapper (mupdf-sys) uses C23 syntax that MSVC's C
+# compiler rejects, so its C is compiled with clang-cl from LLVM, which bindgen
+# needs anyway (libclang, found in C:\Program Files\LLVM\bin on its own).
+# Install LLVM with: winget install LLVM.LLVM
+#
+# Every setting is specific to the x86_64 Windows MSVC target, so macOS and
+# Linux builds are unaffected.
 [env]
 CC_x86_64_pc_windows_msvc = 'C:\Program Files\LLVM\bin\clang-cl.exe'
-LIBCLANG_PATH = 'C:\Program Files\LLVM\bin'
 # MSVC's stddef.h has no max_align_t in C; clang's own header provides it in C11 mode.
 BINDGEN_EXTRA_CLANG_ARGS_x86_64_pc_windows_msvc = '-std=c11'

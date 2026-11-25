@@ -1,0 +1,52 @@
+# Tests on every push to main and every pull request.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libclang-dev patchelf
+
+      - name: Bundled assets (OCR data, font)
+        run: |
+          node scripts/fetch-tessdata.mjs
+          node scripts/fetch-fonts.mjs
+
+      - name: Rust tests (PDF engine, detection rules)
+        run: cargo test -p pdf-core -p redact-ai
+
+      - name: Frontend
+        working-directory: app
+        run: |
+          npm ci
+          npm run typecheck
+          npm test

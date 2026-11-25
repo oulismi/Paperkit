@@ -81,6 +81,11 @@ fn complete(dir: &Path) -> bool {
     FILES.iter().all(|f| std::fs::metadata(dir.join(f.path)).is_ok_and(|m| m.len() == f.size))
 }
 
+/// Whether the model is available (bundled or downloaded).
+pub fn installed(app: &AppHandle) -> bool {
+    find(app).is_some()
+}
+
 fn find(app: &AppHandle) -> Option<(&'static str, PathBuf)> {
     if let Some(dir) = bundled_dir(app).filter(|d| complete(d)) {
         return Some(("bundled", dir));

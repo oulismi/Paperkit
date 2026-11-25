@@ -1,4 +1,5 @@
 import { Icon } from "../components/Icon";
+import { Mark } from "../components/Mark";
 import { TOOLS, type ToolId } from "./tools";
 
 interface Props {
@@ -24,7 +25,9 @@ export function Sidebar({ current, onNavigate }: Props) {
   return (
     <nav className="sidebar" aria-label="Tools">
       <div className="brand">
-        <span className="brand-mark" aria-hidden="true">P</span>
+        <span className="brand-mark" aria-hidden="true">
+          <Mark size={20} color="#FFFFFF" />
+        </span>
         PaperKit
       </div>
       {item("home", "Home", "home")}

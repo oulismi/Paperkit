@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "resources/tessdata/": "tessdata/",
+      "resources/fonts/": "fonts/",
+      "../../models/gliner_multi-v2.1/": "models/gliner_multi-v2.1/"
+    }
+  }
+}

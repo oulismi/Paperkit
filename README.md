@@ -49,7 +49,9 @@ Working now:
   - format rules with checksums (English, French, Dutch, Greek): emails, phones, IBANs, cards,
     national IDs (FR NIR, GR ΑΜΚΑ), labelled IDs (BSN, ΑΦΜ, tax/VAT/passport/case numbers…), dates
   - on-device AI (GLiNER multilingual) for names, addresses and anything described in words
-    ("patient name"); downloaded once on first use (~596 MB), then fully offline
+    ("patient name"); ~596 MB, downloaded once, then fully offline. Offered on first launch
+    (Download now / Later / No thanks), by the Windows installer (yes/no question), and on the
+    Redact screen; bundled in the offline installers
   - scanned pages are read with OCR (Tesseract in MuPDF; English, French, Dutch, Greek data
     bundled, ~13 MB), so detection and verification work on scans too
   - find-and-redact text, draw boxes, review and approve; saves a new copy with the content
@@ -60,8 +62,11 @@ Working now:
 - **Edit**: add text (any of the four languages, embedded Noto Sans), images and signatures,
   whiteout boxes, highlights; fill form fields (text, checkbox, choice)
 
-Next: installers for Windows, macOS and Linux (incl. an offline one with the AI model bundled),
-then a tray icon with a floating drop target.
+- **Drop bubble**: a small glass orb that stays on top of other windows; drag it anywhere (it
+  remembers the spot). Drag a file near it and a ring of four actions opens: release on ↑ Redact,
+  ← Split, → To Word, ↓ Edit, or the centre for the full list. Images get "Create PDF".
+- **Tray icon**: open PaperKit, show/hide the bubble, start with the system (off by default), quit.
+  Closing the main window keeps PaperKit running in the tray.
 
 ## Prerequisites
 
@@ -99,7 +104,18 @@ cd app && npm test       # split planning logic
 npm run typecheck
 ```
 
-Installers: `cd app && npm run tauri build` (output under `target/release/bundle/`).
+## Installers
+
+`cd app && npm run tauri build` (output under `target/release/bundle/`). Add
+`--config src-tauri/tauri.offline.conf.json` (after `node scripts/fetch-model.mjs`) for the
+offline variant with the AI model bundled.
+
+GitHub Actions (`.github/workflows/`):
+- `ci.yml`: tests on Linux and Windows for every push to `main` and every pull request
+- `release.yml`: pushing a tag like `v0.1.0` builds Windows (NSIS + MSI), macOS (Apple Silicon DMG)
+  and Linux (AppImage, deb, rpm) installers, standard and offline, into a **draft** release
+
+Builds are not code-signed yet (Windows SmartScreen / macOS Gatekeeper will warn).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical plan.
 

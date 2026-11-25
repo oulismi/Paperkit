@@ -17,12 +17,15 @@
         "height": 820,
         "minWidth": 900,
         "minHeight": 600,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "label": "main",
+        "visible": false
       }
     ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval'; connect-src ipc: http://ipc.localhost"
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
@@ -37,6 +40,25 @@
     "resources": {
       "resources/tessdata/": "tessdata/",
       "resources/fonts/": "fonts/"
+    },
+    "category": "Productivity",
+    "shortDescription": "Offline PDF toolkit: split, merge, redact, edit, convert",
+    "longDescription": "Split, merge, redact (with on-device AI), edit and convert PDFs. Everything runs on your computer; files never leave it.",
+    "license": "AGPL-3.0-or-later",
+    "licenseFile": "../../LICENSE",
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/hooks.nsh"
+      }
     }
   }
 }

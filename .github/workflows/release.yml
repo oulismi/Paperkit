@@ -1,0 +1,80 @@
+# Builds installers for Windows, macOS and Linux and attaches them to a draft
+# GitHub release. Two variants per system:
+#   standard: small; the AI model is downloaded once, on first use
+#   offline:  the AI model (~600 MB) is bundled, for computers without internet
+#
+# Start it by pushing a version tag (git tag v0.1.0 && git push origin v0.1.0),
+# or from the Actions tab (Run workflow).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-22.04]
+        variant: [standard, offline]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: release
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libclang-dev patchelf
+
+      - name: Bundled assets (OCR data, font)
+        run: |
+          node scripts/fetch-tessdata.mjs
+          node scripts/fetch-fonts.mjs
+
+      - name: AI model (offline variant)
+        if: matrix.variant == 'offline'
+        run: node scripts/fetch-model.mjs
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
+          releaseName: PaperKit ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
+          releaseBody: |
+            **Which file do I need?**
+            - Windows: `…_x64-setup.exe` (or the `.msi`)
+            - macOS (Apple Silicon): `….dmg`
+            - Linux: `.AppImage`, `.deb` or `.rpm`
+
+            Files ending in `_offline` include the AI model (~600 MB) for computers without internet access.
+            The others download it once, the first time AI redaction is used.
+
+            These builds are not code-signed yet: Windows may show a SmartScreen warning ("More info" → "Run anyway"),
+            and on macOS right-click the app → Open the first time.
+          releaseDraft: true
+          args: ${{ matrix.variant == 'offline' && '--config src-tauri/tauri.offline.conf.json' || '' }}
+          assetNamePattern: ${{ matrix.variant == 'offline' && '[name]_[version]_[platform]_[arch]_offline[ext]' || '[name]_[version]_[platform]_[arch][ext]' }}

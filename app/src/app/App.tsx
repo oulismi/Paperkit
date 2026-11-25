@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { message, open } from "@tauri-apps/plugin-dialog";
 import { Home } from "../features/home/Home";
@@ -100,6 +102,23 @@ export function App() {
     const single = viewRef.current === "redact" || viewRef.current === "convert" || viewRef.current === "edit";
     const picked = await open({ multiple: !single, filters: [{ name: "PDF", extensions: ["pdf"] }] });
     if (picked) await addPaths(Array.isArray(picked) ? picked : [picked]);
+  }, [addPaths]);
+
+  // Files handed over from the floating drop bubble: open the chosen tool with them.
+  useEffect(() => {
+    const take = async () => {
+      const request = await invoke<{ action: string; paths: string[] } | null>("take_open_request");
+      if (!request) return;
+      const organize = request.action === "split" || request.action === "merge";
+      const next = (organize ? "organize" : request.action) as View;
+      setView(next);
+      viewRef.current = next; // addPaths routes by the current view
+      await addPaths(request.paths);
+      if (organize) setMode(request.action as Mode);
+    };
+    void take(); // a request may have arrived before this window finished loading
+    const unlisten = listen("paperkit://open", () => void take());
+    return () => void unlisten.then((f) => f());
   }, [addPaths]);
 
   // Files dragged in from the OS. HTML drop events carry no file paths in Tauri, so use its own event.
