@@ -37,6 +37,7 @@ const paths = {
   up: <path d="M5 12l5-5 5 5" />,
   down: <path d="M5 8l5 5 5-5" />,
   extract: <path d="M7 3H4v14h12v-3M10 10l7-7M12 3h5v5" />,
+  box: <rect x="3" y="5" width="14" height="10" rx="1" strokeDasharray="2 2" />,
 };
 
 export type IconName = keyof typeof paths;

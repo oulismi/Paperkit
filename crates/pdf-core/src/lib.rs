@@ -4,6 +4,8 @@
 //! delete) is one operation: build a new PDF from a list of [`PageRef`]s, each
 //! naming a page of a source file and an extra rotation. See [`assemble`].
 //!
+//! Redaction lives in [`redact`] and uses MuPDF.
+//!
 //! Source files are never modified: outputs are written to a temporary file next
 //! to the destination and renamed into place, and an output path that equals a
 //! source path is refused.
@@ -14,6 +16,8 @@ use std::path::{Path, PathBuf};
 
 use lopdf::{dictionary, Dictionary, Document, Object, ObjectId};
 use serde::{Deserialize, Serialize};
+
+pub mod redact;
 
 /// Page attributes a page may inherit from its ancestors in the page tree
 /// (PDF 32000-1, 7.7.3.4). They are copied onto each page before the page is
@@ -36,6 +40,12 @@ pub enum Error {
     NoPages,
     #[error("refusing to overwrite a source file: {0}")]
     OutputIsSource(PathBuf),
+    #[error("there is nothing to redact")]
+    NothingToRedact,
+    #[error("redaction check failed: {0} character(s) were still under the boxes, so nothing was saved")]
+    RedactionIncomplete(usize),
+    #[error("{0}")]
+    Mupdf(String),
     #[error("malformed PDF: {0}")]
     Pdf(#[from] lopdf::Error),
     #[error("could not write {path}: {source}")]
@@ -78,16 +88,12 @@ pub fn page_count(path: &Path) -> Result<u32> {
 /// Builds every output from the given source files. Each source is parsed once.
 /// All page references are checked before anything is written.
 pub fn assemble_files(sources: &[PathBuf], outputs: &[OutputSpec]) -> Result<()> {
-    let canonical_sources: HashSet<PathBuf> = sources.iter().filter_map(|p| fs::canonicalize(p).ok()).collect();
     for out in outputs {
         if out.pages.is_empty() {
             return Err(Error::NoPages);
         }
-        let target = out.path.parent().and_then(|dir| fs::canonicalize(dir).ok()).zip(out.path.file_name());
-        if let Some((dir, name)) = target {
-            if canonical_sources.contains(&dir.join(name)) {
-                return Err(Error::OutputIsSource(out.path.clone()));
-            }
+        if sources.iter().any(|src| same_file(src, &out.path)) {
+            return Err(Error::OutputIsSource(out.path.clone()));
         }
     }
 
@@ -100,6 +106,17 @@ pub fn assemble_files(sources: &[PathBuf], outputs: &[OutputSpec]) -> Result<()>
         write_atomic(&mut doc, &out.path)?;
     }
     Ok(())
+}
+
+/// Whether `out` names the existing file `src` (comparing resolved paths, so
+/// `.\a.pdf` and `C:\dir\a.pdf` match). `out` may not exist yet.
+pub(crate) fn same_file(src: &Path, out: &Path) -> bool {
+    let Ok(src) = fs::canonicalize(src) else { return false };
+    let resolved = out.parent().map(|d| if d.as_os_str().is_empty() { Path::new(".") } else { d });
+    match resolved.and_then(|dir| fs::canonicalize(dir).ok()).zip(out.file_name()) {
+        Some((dir, name)) => dir.join(name) == src,
+        None => false,
+    }
 }
 
 fn validate(docs: &[Document], paths: &[PathBuf], pages: &[PageRef]) -> Result<()> {
@@ -233,7 +250,52 @@ fn write_atomic(doc: &mut Document, path: &Path) -> Result<()> {
 }
 
 #[cfg(test)]
+pub(crate) mod tests_support {
+    use super::*;
+    use lopdf::content::{Content, Operation};
+    use lopdf::Stream;
+
+    pub fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("pdf-core-test-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A one-page A4 PDF with each of `lines` as a line of Helvetica text, top to
+    /// bottom, and an info dictionary naming "Test Author".
+    pub fn write_text_pdf(path: &Path, lines: &[&str]) {
+        let mut doc = Document::with_version("1.5");
+        let tree = doc.new_object_id();
+        let font = doc.add_object(dictionary! { "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica" });
+        let mut ops = vec![];
+        for (i, line) in lines.iter().enumerate() {
+            ops.extend([
+                Operation::new("BT", vec![]),
+                Operation::new("Tf", vec!["F1".into(), 14.into()]),
+                Operation::new("Td", vec![72.into(), (770 - 30 * i as i64).into()]),
+                Operation::new("Tj", vec![Object::string_literal(*line)]),
+                Operation::new("ET", vec![]),
+            ]);
+        }
+        let content = doc.add_object(Stream::new(dictionary! {}, Content { operations: ops }.encode().unwrap()));
+        let page = doc.add_object(dictionary! {
+            "Type" => "Page", "Parent" => tree, "Contents" => content,
+            "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
+            "Resources" => dictionary! { "Font" => dictionary! { "F1" => font } },
+        });
+        doc.objects.insert(tree, Object::Dictionary(dictionary! { "Type" => "Pages", "Kids" => vec![page.into()], "Count" => 1 }));
+        let catalog = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => tree });
+        let info = doc.add_object(dictionary! { "Author" => Object::string_literal("Test Author") });
+        doc.trailer.set("Root", catalog);
+        doc.trailer.set("Info", info);
+        doc.save(path).unwrap();
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::tests_support::temp_dir;
     use super::*;
     use lopdf::content::{Content, Operation};
     use lopdf::Stream;
@@ -355,13 +417,6 @@ mod tests {
         assert!(matches!(assemble(&docs, &[p(0, 3)]), Err(Error::PageOutOfRange { .. })));
         let tilted = PageRef { source: 0, page: 1, rotate: 45 };
         assert!(matches!(assemble(&docs, &[tilted]), Err(Error::InvalidRotation(45))));
-    }
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("pdf-core-test-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        dir
     }
 
     #[test]

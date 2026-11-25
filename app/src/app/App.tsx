@@ -3,6 +3,8 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { message, open } from "@tauri-apps/plugin-dialog";
 import { Home } from "../features/home/Home";
 import { Organizer } from "../features/split-merge/Organizer";
+import { RedactScreen } from "../features/redact/RedactScreen";
+import { RedactStart } from "../features/redact/RedactStart";
 import { forget } from "../lib/pdf";
 import { errorMessage, openPdf } from "../lib/tauri";
 import { colorFor, newId, type Mode, type PageItem, type SourceFile } from "./model";
@@ -17,6 +19,9 @@ export function App() {
   const [files, setFiles] = useState<SourceFile[]>([]);
   const [pages, setPages] = useState<PageItem[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [redactTarget, setRedactTarget] = useState<{ path: string; name: string } | null>(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
   const colorIndex = useRef(0);
   const filesRef = useRef(files);
   filesRef.current = files;
@@ -24,6 +29,19 @@ export function App() {
   const addPaths = useCallback(async (paths: string[]) => {
     const pdfs = paths.filter((p) => /\.pdf$/i.test(p));
     const problems: string[] = [];
+
+    // On the Redact screen, a dropped or picked file is the one to redact.
+    if (viewRef.current === "redact") {
+      if (pdfs.length === 0) return void (await message("Only PDF files can be redacted.", { title: "Not a PDF", kind: "warning" }));
+      try {
+        const info = await openPdf(pdfs[0]);
+        setRedactTarget({ path: info.path, name: info.name });
+      } catch (e) {
+        await message(errorMessage(e), { title: "Could not open the file", kind: "warning" });
+      }
+      return;
+    }
+
     if (pdfs.length < paths.length) {
       problems.push(`Skipped ${paths.length - pdfs.length} file(s): only PDF files can be opened.`);
     }
@@ -55,7 +73,7 @@ export function App() {
   }, []);
 
   const browse = useCallback(async () => {
-    const picked = await open({ multiple: true, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+    const picked = await open({ multiple: viewRef.current !== "redact", filters: [{ name: "PDF", extensions: ["pdf"] }] });
     if (picked) await addPaths(Array.isArray(picked) ? picked : [picked]);
   }, [addPaths]);
 
@@ -110,7 +128,7 @@ export function App() {
   };
 
   const current: "home" | ToolId = view === "organize" ? (mode === "merge" ? "merge" : "split") : view;
-  const soon = TOOLS.find((t) => t.id === view);
+  const soon = TOOLS.find((t) => t.id === view && !t.ready);
 
   return (
     <div className="shell">
@@ -130,13 +148,19 @@ export function App() {
             onCloseAll={closeAll}
           />
         )}
+        {view === "redact" &&
+          (redactTarget ? (
+            <RedactScreen key={redactTarget.path} path={redactTarget.path} name={redactTarget.name} onChangeFile={() => setRedactTarget(null)} />
+          ) : (
+            <RedactStart openFiles={files} onPick={(f) => setRedactTarget({ path: f.path, name: f.name })} onBrowse={browse} />
+          ))}
         {soon && (
           <div className="soon-screen">
             <h1>{soon.label} is coming soon</h1>
             <p>{soon.description}.</p>
             <p>
-              This build covers splitting, merging, extracting, reordering and rotating pages. {soon.label} is next on the
-              roadmap in docs/ARCHITECTURE.md.
+              This build covers splitting, merging, extracting, reordering and rotating pages, and redaction. {soon.label} is on
+              the roadmap in docs/ARCHITECTURE.md.
             </p>
           </div>
         )}

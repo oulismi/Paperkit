@@ -55,6 +55,34 @@ export function thumbnail(path: string, page: number): Promise<string> {
   return url;
 }
 
+const pageImages = new Map<string, Promise<string>>();
+
+/**
+ * Renders page `page` (1-based) with its own rotation, `width` px wide, for the
+ * redaction view. Its layout matches MuPDF's page space, so boxes line up.
+ */
+export function pageImage(path: string, page: number, width: number): Promise<string> {
+  const key = `${path}#${page}@${width}`;
+  let url = pageImages.get(key);
+  if (!url) {
+    url = (async () => {
+      const pdfPage = await (await loadDocument(path)).getPage(page);
+      const base = pdfPage.getViewport({ scale: 1 });
+      const viewport = pdfPage.getViewport({ scale: width / base.width });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await pdfPage.render({ canvas, viewport }).promise;
+      const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok));
+      if (!blob) throw new Error("could not draw page");
+      return URL.createObjectURL(blob);
+    })();
+    url.catch(() => pageImages.delete(key));
+    pageImages.set(key, url);
+  }
+  return url;
+}
+
 /** The rotation a page already has inside its file, so previews can show it the way readers will. */
 export async function intrinsicRotation(path: string, page: number): Promise<number> {
   return (await (await loadDocument(path)).getPage(page)).rotate;
@@ -65,10 +93,12 @@ export function forget(path: string) {
   tasks.get(path)?.destroy().catch(() => {});
   tasks.delete(path);
   docs.delete(path);
-  for (const [key, url] of thumbs) {
-    if (key.startsWith(`${path}#`)) {
-      url.then(URL.revokeObjectURL).catch(() => {});
-      thumbs.delete(key);
+  for (const cache of [thumbs, pageImages]) {
+    for (const [key, url] of cache) {
+      if (key.startsWith(`${path}#`)) {
+        url.then(URL.revokeObjectURL).catch(() => {});
+        cache.delete(key);
+      }
     }
   }
 }

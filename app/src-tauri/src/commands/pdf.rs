@@ -15,7 +15,7 @@ pub struct PdfInfo {
     page_count: u32,
 }
 
-fn ensure_pdf(path: &Path) -> Result<(), String> {
+pub(super) fn ensure_pdf(path: &Path) -> Result<(), String> {
     let is_pdf = path.extension().is_some_and(|e| e.eq_ignore_ascii_case("pdf"));
     if is_pdf {
         Ok(())
@@ -25,7 +25,7 @@ fn ensure_pdf(path: &Path) -> Result<(), String> {
 }
 
 /// Runs blocking PDF work off the main thread so the window stays responsive.
-async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
+pub(super) async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())?
 }
 

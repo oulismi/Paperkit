@@ -1,13 +1,22 @@
 [workspace]
 resolver = "2"
-members = ["crates/pdf-core", "app/src-tauri"]
+members = ["crates/pdf-core", "crates/redact-ai", "app/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "UNLICENSED"
+license = "AGPL-3.0-or-later"
+
+# Build MuPDF optimized even in dev builds. On Windows a debug MuPDF links the
+# debug C runtime, which clashes with Rust's release runtime when linking the app.
+[profile.dev.package.mupdf-sys]
+opt-level = 3
 
 [profile.release]
 codegen-units = 1
 lto = true
 strip = true
+
+# See third_party/README.md.
+[patch.crates-io]
+mupdf = { path = "third_party/mupdf" }

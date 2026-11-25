@@ -42,14 +42,22 @@ paperkit/
 
 ## Status
 
-Working now: drag & drop or browse PDFs, page thumbnails, reorder by dragging, rotate, remove,
-**Split** (every N pages, custom ranges, at selected pages), **Merge**, **Extract**.
-Redact, Edit and Convert are placeholders ("coming soon").
+Working now:
+- Drag & drop or browse PDFs, page thumbnails, reorder by dragging, rotate, remove
+- **Split** (every N pages, custom ranges, at selected pages), **Merge**, **Extract**
+- **Redact**: finds emails, phone numbers, IBANs, card numbers, labelled IDs and dates
+  (format rules with checksums); find-and-redact text; draw boxes; review and approve;
+  saves a new copy with the content really removed (MuPDF), then verifies it
+
+Next: the on-device AI model for names and addresses, OCR for scanned pages. Edit and Convert
+are placeholders.
 
 ## Prerequisites
 
 - Node.js 20+
 - Rust (stable) via https://rustup.rs
+- LLVM (libclang, clang-cl) to build MuPDF — Windows: `winget install LLVM.LLVM`
+  (see `.cargo/config.toml`); the first build compiles MuPDF and takes a few minutes
 - Tauri OS dependencies: https://tauri.app/start/prerequisites/
   (Windows: WebView2 + "Desktop development with C++" build tools)
 
@@ -67,7 +75,7 @@ Sample PDFs with fictional content are in `tests/fixtures/`; regenerate them wit
 ## Test
 
 ```sh
-cargo test -p pdf-core   # PDF engine
+cargo test -p pdf-core -p redact-ai   # PDF engine, redaction, detection rules
 cd app && npm test       # split planning logic
 npm run typecheck
 ```
@@ -75,3 +83,7 @@ npm run typecheck
 Installers: `cd app && npm run tauri build` (output under `target/release/bundle/`).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical plan.
+
+## License
+
+AGPL-3.0-or-later (see [LICENSE](LICENSE)), as required by MuPDF.

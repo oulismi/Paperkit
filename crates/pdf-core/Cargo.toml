@@ -8,3 +8,8 @@ license.workspace = true
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 lopdf = "0.47.0"
+# AGPL-3.0. Only PDF support for now; "tesseract" (OCR) and "img" come later.
+mupdf = { version = "0.8.0", default-features = false, features = ["base14-fonts"] }
+
+[dev-dependencies]
+redact-ai = { path = "../redact-ai" }

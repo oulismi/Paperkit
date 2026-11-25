@@ -7,6 +7,9 @@ pub fn run() {
             commands::pdf::open_pdf,
             commands::pdf::read_pdf,
             commands::pdf::assemble,
+            commands::redact::redact_scan,
+            commands::redact::redact_search,
+            commands::redact::redact_apply,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PaperKit");

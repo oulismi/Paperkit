@@ -1,0 +1,10 @@
+[package]
+name = "redact-ai"
+description = "Finds sensitive data in text: exact-format rules now, an on-device NER model later"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
