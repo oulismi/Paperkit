@@ -1,4 +1,4 @@
-# PaperKit (working name)
+# PaperKit
 
 Offline desktop PDF toolkit for Windows, macOS and Linux.
 Drag & drop a PDF, then **Split · Merge · Redact (on-device AI) · Edit · Convert**.
