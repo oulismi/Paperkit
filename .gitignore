@@ -1,0 +1,26 @@
+# Node / frontend
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+
+# Rust / Tauri
+target/
+app/src-tauri/gen/
+
+# AI models (large, downloaded by scripts/)
+models/*
+!models/.gitkeep
+!models/README.md
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Secrets
+.env
+.env.*
+app/public/pdfjs/

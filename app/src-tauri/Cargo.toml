@@ -1,0 +1,19 @@
+[package]
+name = "paperkit"
+description = "Offline PDF toolkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "paperkit_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+pdf-core = { path = "../../crates/pdf-core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
