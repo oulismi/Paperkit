@@ -57,6 +57,42 @@ jobs:
         working-directory: app
         run: npm ci
 
+      # Signing switches on by itself once the secrets exist (see docs/SIGNING.md):
+      #   TAURI_SIGNING_PRIVATE_KEY      update packages + latest.json (standard variant only;
+      #                                  the offline edition updates by new installer)
+      #   APPLE_CERTIFICATE, …           macOS signing and notarization
+      - name: Signing setup
+        shell: bash
+        env:
+          UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          args=""
+          if [ "${{ matrix.variant }}" = "offline" ]; then args="--config src-tauri/tauri.offline.conf.json"; fi
+          if [ -n "$UPDATER_KEY" ] && [ "${{ matrix.variant }}" = "standard" ]; then
+            args="$args --config src-tauri/tauri.updater.conf.json"
+            { echo "TAURI_SIGNING_PRIVATE_KEY<<KEY_EOF"; echo "$UPDATER_KEY"; echo "KEY_EOF"; } >> "$GITHUB_ENV"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$UPDATER_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "UPDATER=true" >> "$GITHUB_ENV"
+            echo "Update signing: on"
+          else
+            echo "Update signing: off"
+          fi
+          if [ "$RUNNER_OS" = "macOS" ] && [ -n "$APPLE_CERTIFICATE" ]; then
+            { echo "APPLE_CERTIFICATE<<CERT_EOF"; echo "$APPLE_CERTIFICATE"; echo "CERT_EOF"; } >> "$GITHUB_ENV"
+            for v in APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              echo "$v=${!v}" >> "$GITHUB_ENV"
+            done
+            echo "macOS signing: on"
+          fi
+          echo "TAURI_ARGS=$args" >> "$GITHUB_ENV"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,5 +113,6 @@ jobs:
             These builds are not code-signed yet: Windows may show a SmartScreen warning ("More info" → "Run anyway"),
             and on macOS right-click the app → Open the first time.
           releaseDraft: true
-          args: ${{ matrix.variant == 'offline' && '--config src-tauri/tauri.offline.conf.json' || '' }}
+          args: ${{ env.TAURI_ARGS }}
+          includeUpdaterJson: ${{ env.UPDATER == 'true' }}
           assetNamePattern: ${{ matrix.variant == 'offline' && '[name]_[version]_[platform]_[arch]_offline[ext]' || '[name]_[version]_[platform]_[arch][ext]' }}

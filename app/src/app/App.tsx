@@ -15,6 +15,9 @@ import { errorMessage, isImage, openPdf } from "../lib/tauri";
 import { colorFor, newId, type Mode, type PageItem, type SourceFile } from "./model";
 import { Sidebar } from "./Sidebar";
 import { TOOLS, type ToolId } from "./tools";
+import { UpdateBanner } from "./UpdateBanner";
+import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
+import type { Item as EditItem } from "../features/edit/EditPage";
 
 type View = "home" | "organize" | "redact" | "edit" | "convert";
 
@@ -28,6 +31,8 @@ export function App() {
   const [convertTarget, setConvertTarget] = useState<{ path: string; name: string; pageCount: number } | null>(null);
   const [convertImages, setConvertImages] = useState<string[]>([]);
   const [editTarget, setEditTarget] = useState<{ path: string; name: string } | null>(null);
+  const [demo, setDemo] = useState<{ screen: string } | null>(null);
+  const [editDemoItems, setEditDemoItems] = useState<EditItem[] | undefined>(undefined);
   const viewRef = useRef(view);
   viewRef.current = view;
   const colorIndex = useRef(0);
@@ -104,6 +109,55 @@ export function App() {
     if (picked) await addPaths(Array.isArray(picked) ? picked : [picked]);
   }, [addPaths]);
 
+  // Demo mode (screenshots): open one screen with the sample files, at a fixed size.
+  const demoStarted = useRef(false);
+  useEffect(() => {
+    if (demoStarted.current) return; // React's dev mode runs effects twice
+    demoStarted.current = true;
+    void invoke<{ screen: string; files: string } | null>("demo_request").then(async (d) => {
+      if (!d) return;
+      setDemo(d);
+      // Fixed size for consistent shots; never let this stop the demo.
+      await getCurrentWindow().setSize(new LogicalSize(1280, 800)).catch(() => {});
+      await getCurrentWindow().center().catch(() => {});
+      const f = (name: string) => `${d.files}\\${name}`;
+      const pdf = async (name: string) => openPdf(f(name));
+      switch (d.screen) {
+        case "organize":
+          viewRef.current = "organize";
+          setView("organize");
+          await addPaths([f("Report_Q1.pdf"), f("Annex_A.pdf")]);
+          setMode("merge");
+          break;
+        case "redact": {
+          const info = await pdf("Employment_Contract.pdf");
+          setRedactTarget({ path: info.path, name: info.name });
+          setView("redact");
+          break;
+        }
+        case "convert": {
+          const info = await pdf("Scanned_Contract.pdf");
+          setConvertTarget({ path: info.path, name: info.name, pageCount: info.pageCount });
+          setView("convert");
+          break;
+        }
+        case "edit": {
+          const info = await pdf("Employment_Contract.pdf");
+          setEditDemoItems([
+            { id: "demo-stamp", op: { kind: "text", page: 1, x: 330, y: 32, text: "Approved for signature · 25 Nov 2026", size: 12, color: [0.12, 0.37, 0.82] } },
+            { id: "demo-mark", op: { kind: "highlight", area: { page: 1, x0: 58, y0: 192, x1: 436, y1: 208 }, color: [1, 0.85, 0.2] } },
+          ]);
+          setEditTarget({ path: info.path, name: info.name });
+          setView("edit");
+          break;
+        }
+        default:
+          setView("home");
+      }
+    });
+    // Runs once at startup.
+  }, []);
+
   // Files handed over from the floating drop bubble: open the chosen tool with them.
   useEffect(() => {
     const take = async () => {
@@ -178,6 +232,7 @@ export function App() {
     <div className="shell">
       <Sidebar current={current} onNavigate={goTo} />
       <main className="main">
+        <UpdateBanner enabled={!import.meta.env.DEV && !demo} />
         {view === "home" && <Home onBrowse={browse} onTool={goTo} />}
         {view === "organize" && (
           <Organizer
@@ -194,13 +249,19 @@ export function App() {
         )}
         {view === "redact" &&
           (redactTarget ? (
-            <RedactScreen key={redactTarget.path} path={redactTarget.path} name={redactTarget.name} onChangeFile={() => setRedactTarget(null)} />
+            <RedactScreen
+              key={redactTarget.path}
+              path={redactTarget.path}
+              name={redactTarget.name}
+              onChangeFile={() => setRedactTarget(null)}
+              autoApprove={demo ? (source) => source === "rule" : undefined}
+            />
           ) : (
             <RedactStart openFiles={files} onPick={(f) => setRedactTarget({ path: f.path, name: f.name })} onBrowse={browse} />
           ))}
         {view === "edit" &&
           (editTarget ? (
-            <EditScreen key={editTarget.path} path={editTarget.path} name={editTarget.name} onChangeFile={() => setEditTarget(null)} />
+            <EditScreen key={editTarget.path} path={editTarget.path} name={editTarget.name} onChangeFile={() => setEditTarget(null)} initialItems={editDemoItems} />
           ) : (
             <PickFile
               title="Edit a PDF"

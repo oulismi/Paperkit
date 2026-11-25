@@ -15,6 +15,9 @@
     "core:window:allow-start-dragging",
     "core:window:allow-set-size",
     "core:window:allow-set-position",
-    "core:window:allow-set-focus"
+    "core:window:allow-set-focus",
+    "updater:default",
+    "process:allow-restart",
+    "core:window:allow-center"
   ]
 }

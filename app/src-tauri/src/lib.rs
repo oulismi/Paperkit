@@ -2,15 +2,21 @@ mod commands;
 mod shell;
 
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    if shell::demo().is_none() {
         // Must be first: a second launch (e.g. from the Start menu while running
-        // in the tray) just brings up the running PaperKit.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| shell::show_main(app)))
+        // in the tray) just brings up the running PaperKit. Demo runs (for
+        // screenshots) are allowed beside it.
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| shell::show_main(app)));
+    }
+    builder
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![shell::BACKGROUND_ARG]),
         ))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(shell::ShellState::default())
         .manage(commands::model::ModelState::default())
         .manage(commands::redact::TextCache::default())
@@ -38,6 +44,7 @@ pub fn run() {
             shell::show_main_window,
             shell::ai_offer,
             shell::ai_offer_decline,
+            shell::demo_request,
         ])
         .setup(|app| {
             shell::setup(app.handle())?;

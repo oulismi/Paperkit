@@ -316,3 +316,11 @@ svg { flex: none; }
 .ai-welcome-body p { font-size: 14px; line-height: 1.5; color: var(--text-2); max-width: 70ch; }
 .ai-welcome-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ai-welcome .ai-progress { max-width: 420px; }
+
+/* ---- Update banner ---- */
+.update-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 20px;
+  background: var(--accent-soft); color: var(--accent-hover); border-bottom: 1px solid #c9d6f2; font-size: 13px;
+}
+.update-banner > span:first-child { flex: 1 1 260px; }
+.update-banner.err { background: var(--danger-soft); color: var(--danger); border-color: #f4c7c3; }

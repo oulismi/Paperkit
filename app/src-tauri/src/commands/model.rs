@@ -87,6 +87,10 @@ pub fn installed(app: &AppHandle) -> bool {
 }
 
 fn find(app: &AppHandle) -> Option<(&'static str, PathBuf)> {
+    // Development and screenshots: a model folder given explicitly.
+    if let Some(dir) = std::env::var_os("PAPERKIT_MODEL_DIR").map(PathBuf::from).filter(|d| complete(d)) {
+        return Some(("downloaded", dir));
+    }
     if let Some(dir) = bundled_dir(app).filter(|d| complete(d)) {
         return Some(("bundled", dir));
     }

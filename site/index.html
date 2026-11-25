@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PaperKit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="PaperKit is a free, open-source PDF toolkit for Windows, macOS and Linux that works entirely offline: split, merge, redact with on-device AI, edit and convert PDFs.">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one column of alternating feature bands; the hero headline uses a
+   live redaction bar as its one bold gesture, echoing the product. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #16181d;
+  --ink-2: #3a404c;
+  --muted: #5b6270;
+  --line: #e3e6eb;
+  --accent: #1f5fd1;
+  --accent-soft: #e8eefb;
+  --ai: #6b21a8;
+  --ai-soft: #f3e8ff;
+  --ok: #1b5e36;
+  --ok-soft: #eaf6ee;
+  --bar: #16181d;          /* redaction bars */
+  --shot-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 24px 60px rgba(16, 24, 40, 0.18);
+  --display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101216; --surface: #181b21; --ink: #eef0f4; --ink-2: #c5cad3; --muted: #9aa2b0; --line: #2a2f38;
+    --accent: #6f9cf0; --accent-soft: #1c2a44; --ai: #c49af0; --ai-soft: #2b1d3b; --ok: #7fd3a1; --ok-soft: #16281e;
+    --bar: #eef0f4; --shot-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101216; --surface: #181b21; --ink: #eef0f4; --ink-2: #c5cad3; --muted: #9aa2b0; --line: #2a2f38;
+  --accent: #6f9cf0; --accent-soft: #1c2a44; --ai: #c49af0; --ai-soft: #2b1d3b; --ok: #7fd3a1; --ok-soft: #16281e;
+  --bar: #eef0f4; --shot-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; display: block; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+p { margin: 0; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+/* ---- Header ---- */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.site-head { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.site-head .wrap { display: flex; align-items: center; gap: 24px; padding-block: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-family: var(--display); font-weight: 800; font-size: 20px; }
+.brand img { width: 32px; height: 32px; border-radius: 8px; }
+.nav { display: flex; gap: 22px; margin-left: auto; font-size: 15px; }
+.nav a { color: var(--ink-2); text-decoration: none; }
+.nav a:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid transparent; font-size: 15px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+.btn-ghost:hover { border-color: var(--accent); }
+@media (max-width: 720px) { .nav { display: none; } .site-head .btn { margin-left: auto; } }
+
+/* ---- Hero ---- */
+.hero { padding-block: 72px 40px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ok); background: var(--ok-soft); padding: 6px 12px; border-radius: 99px; }
+.hero h1 { font-size: clamp(42px, 7vw, 88px); font-weight: 800; margin-top: 22px; max-width: 14ch; }
+.redact { position: relative; display: inline-block; white-space: nowrap; }
+.redact::after {
+  content: ""; position: absolute; left: -0.06em; right: -0.06em; top: 0.12em; bottom: 0.04em;
+  background: var(--bar); border-radius: 0.06em; transform-origin: left center;
+  animation: redact 4.8s cubic-bezier(.7, 0, .3, 1) infinite;
+}
+@keyframes redact { 0%, 18% { transform: scaleX(0); } 32%, 78% { transform: scaleX(1); } 92%, 100% { transform: scaleX(0); } }
+.hero .lead { font-size: clamp(18px, 2vw, 21px); color: var(--ink-2); max-width: 60ch; margin-top: 22px; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; align-items: center; }
+.hero-meta { font-size: 13px; color: var(--muted); margin-top: 14px; }
+.shot { border-radius: 12px; overflow: hidden; box-shadow: var(--shot-shadow); border: 1px solid var(--line); background: var(--surface); }
+.shot img { width: 100%; height: auto; aspect-ratio: 1282 / 832; }
+
+.langs { display: flex; flex-wrap: wrap; gap: 10px 28px; padding-block: 26px; border-block: 1px solid var(--line); margin-top: 56px; font-size: 14px; color: var(--muted); }
+.langs strong { color: var(--ink); font-weight: 600; }
+
+/* ---- Features ---- */
+.feature { padding-block: 88px; }
+.feature + .feature { border-top: 1px solid var(--line); }
+.feature-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; }
+.feature.flip .feature-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.feature.flip .feature-text { order: 2; }
+@media (max-width: 900px) { .feature-grid, .feature.flip .feature-grid { grid-template-columns: minmax(0, 1fr); } .feature.flip .feature-text { order: 0; } }
+.kicker { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+.kicker.ai { color: var(--ai); }
+.feature h2 { font-size: clamp(30px, 3.6vw, 44px); font-weight: 800; margin-top: 10px; }
+.feature p { color: var(--ink-2); margin-top: 16px; max-width: 54ch; }
+.points { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 12px; }
+.points li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; color: var(--ink-2); font-size: 15px; }
+.points svg { margin-top: 3px; color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chip { font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
+
+/* ---- Drop bubble demo ---- */
+.bubble-stage {
+  position: relative; aspect-ratio: 7 / 5; border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+  background: radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.35), transparent 40%), linear-gradient(155deg, #7fa9be 0%, #a9c3b3 45%, #d9b894 100%);
+  display: grid; place-items: center;
+}
+.bubble-stage .doc { position: absolute; left: 7%; top: 12%; width: 44%; height: 70%; background: #fff; border-radius: 10px; box-shadow: 0 12px 30px rgba(20, 32, 44, 0.18); padding: 7% 6%; display: grid; align-content: start; gap: 10px; }
+.bubble-stage .doc i { display: block; height: 7px; border-radius: 4px; background: #d9dee6; }
+.ring { position: relative; width: min(64%, 300px); aspect-ratio: 1; }
+.ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.seg { fill: rgba(255, 255, 255, 0.62); stroke: rgba(255, 255, 255, 0.95); stroke-width: 1.2; transition: fill 0.2s; cursor: pointer; }
+.seg.hot { fill: rgba(31, 95, 209, 0.92); }
+.seg-icon { fill: none; stroke: #16181d; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; transition: stroke 0.2s; }
+.seg-icon.hot { stroke: #fff; }
+.orb {
+  position: absolute; left: 29%; top: 29%; width: 42%; height: 42%; border-radius: 50%; display: grid; place-items: center; text-align: center;
+  color: #16181d; font: 600 13px/1.25 var(--body);
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.6) 42%, rgba(235, 241, 250, 0.5) 72%);
+  border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.14), 0 10px 26px rgba(16, 24, 40, 0.28), inset 0 1px 0 #fff;
+  transition: background 0.2s, color 0.2s;
+}
+.orb.hot { background: radial-gradient(circle at 35% 30%, #5b8ee8, #1f5fd1 60%, #1a4fb0); color: #fff; }
+.orb small { display: block; font-weight: 500; opacity: 0.85; font-size: 11px; }
+.bubble-caption { font-size: 13px; color: var(--muted); margin-top: 12px; text-align: center; }
+
+/* ---- Privacy ---- */
+.privacy { background: var(--ink); color: #f6f7f9; padding-block: 96px; }
+:root[data-theme="dark"] .privacy { background: #0b0c0f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .privacy { background: #0b0c0f; } }
+.privacy h2 { font-size: clamp(30px, 4vw, 48px); font-weight: 800; max-width: 18ch; }
+.privacy .lead { color: #c5cad3; margin-top: 16px; max-width: 62ch; }
+.net { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 40px; }
+.net div { border: 1px solid #2f3540; border-radius: 12px; padding: 20px; background: rgba(255, 255, 255, 0.03); }
+.net h3 { font-family: var(--body); font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.net p { color: #aab1bd; font-size: 14px; margin-top: 8px; }
+.net .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; margin-bottom: 10px; }
+.tag.never { background: #1d3a2a; color: #8fe0b1; }
+.tag.ask { background: #2b2440; color: #cdb4f5; }
+
+/* ---- Download ---- */
+.download { padding-block: 96px; }
+.download h2 { font-size: clamp(30px, 4vw, 48px); font-weight: 800; }
+.download .lead { color: var(--ink-2); margin-top: 14px; max-width: 64ch; }
+.platforms { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 36px; }
+.platform { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.platform.recommended { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.platform-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.platform h3 { font-size: 22px; font-weight: 800; }
+.platform .yours { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 99px; }
+.platform .req { font-size: 13px; color: var(--muted); }
+.dl { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--ink); }
+.dl:hover { border-color: var(--accent); }
+.dl strong { font-weight: 600; font-size: 15px; }
+.dl span { font-size: 13px; color: var(--muted); }
+.dl .size { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.note { margin-top: 24px; font-size: 14px; color: var(--muted); max-width: 80ch; }
+
+/* ---- FAQ ---- */
+.faq { padding-block: 32px 96px; }
+.faq h2 { font-size: clamp(28px, 3vw, 38px); font-weight: 800; margin-bottom: 18px; }
+details { border-top: 1px solid var(--line); padding-block: 16px; }
+details:last-of-type { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; font-weight: 600; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-family: var(--mono); color: var(--muted); }
+details[open] summary::after { content: "–"; }
+details p { color: var(--ink-2); margin-top: 10px; max-width: 72ch; }
+
+/* ---- Footer ---- */
+.site-foot { border-top: 1px solid var(--line); padding-block: 36px; font-size: 14px; color: var(--muted); }
+.site-foot .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; }
+.site-foot a { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .redact::after { animation: none; transform: scaleX(1); }
+  .seg, .orb, .seg-icon { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="icon.png" alt="" width="32" height="32">PaperKit</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#redact">Redact</a>
+      <a href="#tools">Tools</a>
+      <a href="#bubble">Drop bubble</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary" href="#download">Download</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="1.5"></rect><path d="M7 9V6a3 3 0 016 0v3"></path></svg>
+          Works offline · free and open source
+        </span>
+        <h1>Share the document, not the <span class="redact">secrets</span>.</h1>
+        <p class="lead">PaperKit splits, merges, redacts, edits and converts PDFs on your own computer. Its on-device AI finds names, addresses and ID numbers to black out, and your files never leave your machine.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" id="hero-download" href="#download">Download PaperKit</a>
+          <a class="btn btn-ghost" href="https://github.com/oulismi/Paperkit">View the source</a>
+        </div>
+        <p class="hero-meta" id="hero-meta">Windows 10/11 · macOS (Apple Silicon) · Linux</p>
+      </div>
+      <figure class="shot" style="margin:0">
+        <img src="screens/redact.png" alt="PaperKit's Redact screen: a contract with an IBAN, tax ID, email and phone number blacked out, and AI-suggested names and an address highlighted for review." width="1282" height="832">
+      </figure>
+    </div>
+    <div class="wrap">
+      <div class="langs" aria-label="Languages">
+        <span><strong>Reads documents in</strong></span>
+        <span>English</span><span>Français</span><span>Nederlands</span><span>Ελληνικά</span>
+        <span style="margin-left:auto"><strong>Scanned pages:</strong> built-in OCR</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="feature" id="redact">
+    <div class="wrap feature-grid">
+      <div class="feature-text">
+        <span class="kicker ai">Redact · on-device AI</span>
+        <h2>Black boxes that really remove what's underneath.</h2>
+        <p>Many tools only draw a rectangle over the text; anyone can copy it back out. PaperKit deletes the text, image pixels and drawings under every box, saves a new copy, then reads that copy back to prove nothing is left.</p>
+        <ul class="points">
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Format rules with checksums find emails, phone numbers, IBANs, card numbers and national IDs.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>An AI model running on your computer suggests people's names and addresses, or anything you describe, like "patient name".</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>You approve every item. Your original file is never changed, and document metadata is removed too.</span></li>
+        </ul>
+        <div class="chips" aria-label="Examples of what it recognises">
+          <span class="chip">IBAN GB29 NWBK…</span><span class="chip">ΑΦΜ</span><span class="chip">ΑΜΚΑ</span><span class="chip">BSN</span><span class="chip">NIR</span><span class="chip">+44 7700 900…</span>
+        </div>
+      </div>
+      <figure class="shot" style="margin:0"><img src="screens/redact.png" alt="Redact screen with approved items blacked out and AI suggestions marked for review." width="1282" height="832" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="feature flip" id="scans">
+    <div class="wrap feature-grid">
+      <div class="feature-text">
+        <span class="kicker">Scans and conversions</span>
+        <h2>Scanned paper works too.</h2>
+        <p>Built-in text recognition reads scanned pages in English, French, Dutch and Greek, so they can be redacted, searched and converted like any other PDF.</p>
+        <ul class="points">
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>PDF to Word, plain text or PNG/JPG images.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Make a scanned PDF searchable: pages look the same, but text can now be found and copied.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Turn photos and scans (JPG, PNG, TIFF) into one PDF.</span></li>
+        </ul>
+      </div>
+      <figure class="shot" style="margin:0"><img src="screens/convert.png" alt="Convert screen with a scanned contract and options for Word, images, plain text and searchable PDF." width="1282" height="832" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="feature" id="tools">
+    <div class="wrap feature-grid">
+      <div class="feature-text">
+        <span class="kicker">Split · Merge · Extract</span>
+        <h2>See every page. Drag it where it belongs.</h2>
+        <p>Drop in one PDF or several. Pages appear as thumbnails, colour-coded by file, ready to reorder, rotate, remove, split into parts or merge into one.</p>
+        <ul class="points">
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Split every N pages, by ranges like <code>1-3, 4-8</code>, or at the pages you select.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Extract selected pages into one file or one file each.</span></li>
+        </ul>
+      </div>
+      <figure class="shot" style="margin:0"><img src="screens/organize.png" alt="Page organizer merging two files: nine page thumbnails, colour-coded by source file." width="1282" height="832" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="feature flip" id="edit">
+    <div class="wrap feature-grid">
+      <div class="feature-text">
+        <span class="kicker">Edit</span>
+        <h2>Add a note, a signature, a highlight.</h2>
+        <p>Type text straight onto the page in any of the four languages, place a scanned signature or logo, highlight a clause, or fill in a form. It's saved as a new copy, and the text stays searchable.</p>
+      </div>
+      <figure class="shot" style="margin:0"><img src="screens/edit.png" alt="Edit screen with an added blue approval stamp and a highlighted clause." width="1282" height="832" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="feature" id="bubble">
+    <div class="wrap feature-grid">
+      <div class="feature-text">
+        <span class="kicker">Drop bubble</span>
+        <h2>Drag a file. Let go on what you want.</h2>
+        <p>A small glass bubble floats on your screen, wherever you put it. Drag a PDF near it and a ring of actions opens: let go on Redact, Split, Word or Edit, and it starts. No windows to find, no menus to open.</p>
+        <ul class="points">
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Quick jobs like "Convert to Word" finish right there, with progress around the bubble.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"></path></svg><span>Lives in the system tray; can start with your computer if you want it to.</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="bubble-stage" role="img" aria-label="Animated drop bubble: a ring of four actions around a glass orb, each lighting up in turn.">
+          <div class="doc" aria-hidden="true"><i style="width:55%;background:#9aa3b2"></i><i></i><i style="width:90%"></i><i></i><i style="width:70%"></i><i style="width:95%"></i><i style="width:60%"></i></div>
+          <div class="ring" id="ring">
+            <svg viewBox="0 0 240 240" aria-hidden="true">
+              <path class="seg" data-dir="n" d="M193.6 38.3 A110 110 0 0 0 46.4 38.3 L86.5 82.8 A50 50 0 0 1 153.5 82.8 Z"></path>
+              <path class="seg" data-dir="w" d="M38.3 46.4 A110 110 0 0 0 38.3 193.6 L82.8 153.5 A50 50 0 0 1 82.8 86.5 Z"></path>
+              <path class="seg" data-dir="s" d="M46.4 201.7 A110 110 0 0 0 193.6 201.7 L153.5 157.2 A50 50 0 0 1 86.5 157.2 Z"></path>
+              <path class="seg" data-dir="e" d="M201.7 193.6 A110 110 0 0 0 201.7 46.4 L157.2 86.5 A50 50 0 0 1 157.2 153.5 Z"></path>
+              <g class="seg-icon" data-dir="n" transform="translate(109 29) scale(1.1)"><rect x="3" y="4" width="14" height="12" rx="1"></rect><rect x="5.5" y="8.5" width="9" height="3" fill="currentColor"></rect></g>
+              <g class="seg-icon" data-dir="w" transform="translate(29 109) scale(1.1)"><circle cx="5" cy="5" r="2.5"></circle><circle cx="5" cy="15" r="2.5"></circle><path d="M7 6.5L17 15M7 13.5L17 5"></path></g>
+              <g class="seg-icon" data-dir="s" transform="translate(109 189) scale(1.1)"><path d="M13 3l4 4-9 9H4v-4z"></path></g>
+              <g class="seg-icon" data-dir="e" transform="translate(189 109) scale(1.1)"><path d="M4 7h12l-3-3M16 13H4l3 3"></path></g>
+            </svg>
+            <div class="orb" id="orb" aria-live="off"><span>Drop on<br>an action</span></div>
+          </div>
+        </div>
+        <p class="bubble-caption">↑ Redact · ← Split · → To Word · ↓ Edit · centre for everything else</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="privacy" id="privacy">
+    <div class="wrap">
+      <h2>Private by design, not by promise.</h2>
+      <p class="lead">There is no account, no cloud and no tracking. Everything PaperKit does to your documents happens on your computer. It only goes online in two cases, both shown below.</p>
+      <div class="net">
+        <div><span class="tag never">Never</span><h3>Your documents</h3><p>Files are opened, analysed, redacted and saved locally. Nothing is uploaded, ever, and that includes the AI.</p></div>
+        <div><span class="tag ask">Once, if you choose</span><h3>The AI model</h3><p>A one-time 596 MB download from Hugging Face, checked against a fixed fingerprint. The offline installers already include it.</p></div>
+        <div><span class="tag ask">Updates</span><h3>New versions</h3><p>PaperKit checks GitHub for a new release and asks before installing. Updates are signed, so only genuine PaperKit releases are accepted.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="download" id="download">
+    <div class="wrap">
+      <h2>Download PaperKit</h2>
+      <p class="lead">Free and open source. The standard installer downloads the AI model the first time you need it; the offline installer includes it, for computers without internet.</p>
+      <div class="platforms" id="platforms">
+        <div class="platform" data-os="windows">
+          <div class="platform-head"><h3>Windows</h3></div>
+          <span class="req">Windows 10 or 11, 64-bit</span>
+          <a class="dl" data-match="_windows_x64.exe" href="https://github.com/oulismi/Paperkit/releases/latest"><span><strong>Installer</strong><br><span>.exe · AI downloaded on first use</span></span><span class="size"></span></a>
+          <a class="dl" data-match="_windows_x64_offline.exe" href="https://github.com/oulismi/Paperkit/releases/latest"><span><strong>Offline installer</strong><br><span>.exe · AI included</span></span><span class="size"></span></a>
+        </div>
+        <div class="platform" data-os="mac">
+          <div class="platform-head"><h3>macOS</h3></div>
+          <span class="req">Apple Silicon (M1 or later), macOS 11+</span>
+          <a class="dl" data-match="_darwin_aarch64.dmg" href="https://github.com/oulismi/Paperkit/releases/latest"><span><strong>Disk image</strong><br><span>.dmg · AI downloaded on first use</span></span><span class="size"></span></a>
+          <a class="dl" data-match="_darwin_aarch64_offline.dmg" href="https://github.com/oulismi/Paperkit/releases/latest"><span><strong>Offline disk image</strong><br><span>.dmg · AI included</span></span><span class="size"></span></a>
+        </div>
+        <div class="platform" data-os="linux">
+          <div class="platform-head"><h3>Linux</h3></div>
+          <span class="req">64-bit; AppImage runs on most distributions</span>
+          <a class="dl" data-match="_linux_amd64.AppImage" href="https://github.com/oulismi/Paperkit/releases/latest"><span><strong>AppImage</strong><br><span>also .deb and .rpm on the release page</span></span><span class="size"></span></a>
+          <a class="dl" data-match="_linux_amd64_offline.AppImage" href="https://github.com/oulismi/Paperkit/releases/latest"><span><strong>Offline AppImage</strong><br><span>AI included</span></span><span class="size"></span></a>
+        </div>
+      </div>
+      <p class="note" id="release-note">All files, checksums and release notes are on the <a href="https://github.com/oulismi/Paperkit/releases/latest">latest release page</a>. The first releases aren't code-signed yet: on Windows choose "More info" → "Run anyway"; on a Mac, right-click the app and choose Open the first time.</p>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="wrap">
+      <h2>Questions</h2>
+      <details><summary>Is PaperKit really free?</summary><p>Yes. It's open source under the AGPL-3.0 license: free to use, study and share. The source code is on GitHub.</p></details>
+      <details><summary>Do I need an internet connection?</summary><p>No. Every tool works offline. The internet is only used if you choose to download the AI model (once) and to check for updates. Use the offline installer if a computer never goes online.</p></details>
+      <details><summary>How do I know the redaction is safe?</summary><p>PaperKit removes the content under each box rather than covering it, deletes document metadata, and saves a new file. It then reads that new file back, using text recognition for scanned pages, and refuses to save if anything is still readable under a box.</p></details>
+      <details><summary>What can the AI find, and how accurate is it?</summary><p>People's names and addresses in English, French, Dutch and Greek, plus anything you describe in words. It suggests; you decide. Fixed-format items such as IBANs, card numbers and national IDs come from exact rules with checksums, not from the AI.</p></details>
+      <details><summary>Which file should I download?</summary><p>The standard installer for most people. Pick the offline installer for computers that are never connected to the internet: it includes the AI model, so it is larger.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <span>PaperKit · AGPL-3.0 · <a href="https://github.com/oulismi/Paperkit">Source on GitHub</a></span>
+    <span>Built with <a href="https://mupdf.com/">MuPDF</a>, <a href="https://github.com/tesseract-ocr/tesseract">Tesseract</a>, <a href="https://github.com/urchade/GLiNER">GLiNER</a>, <a href="https://tauri.app/">Tauri</a> and Noto Sans.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Recommend the visitor's own system.
+  var ua = navigator.userAgent || "";
+  var os = /Windows/i.test(ua) ? "windows" : /Mac OS X|Macintosh/i.test(ua) ? "mac" : /Linux|X11/i.test(ua) ? "linux" : null;
+  var names = { windows: "Windows", mac: "macOS", linux: "Linux" };
+  if (os) {
+    var card = document.querySelector('.platform[data-os="' + os + '"]');
+    if (card) {
+      card.classList.add("recommended");
+      var tag = document.createElement("span");
+      tag.className = "yours";
+      tag.textContent = "Your system";
+      card.querySelector(".platform-head").appendChild(tag);
+      card.parentNode.insertBefore(card, card.parentNode.firstChild);
+    }
+    var hero = document.getElementById("hero-download");
+    if (hero) hero.textContent = "Download for " + names[os];
+  }
+
+  // Point each button at the real file of the latest release (falls back to the release page).
+  fetch("https://api.github.com/repos/oulismi/Paperkit/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (release) {
+      if (!release || !release.assets) return;
+      document.querySelectorAll(".dl[data-match]").forEach(function (link) {
+        var suffix = link.getAttribute("data-match");
+        var asset = release.assets.find(function (a) { return a.name.endsWith(suffix); });
+        if (!asset) return;
+        link.href = asset.browser_download_url;
+        link.querySelector(".size").textContent = Math.round(asset.size / 1e6) + " MB";
+      });
+      var meta = document.getElementById("hero-meta");
+      if (meta && release.tag_name) meta.textContent = "Version " + release.tag_name.replace(/^v/, "") + " · Windows 10/11 · macOS (Apple Silicon) · Linux";
+    })
+    .catch(function () {});
+
+  // Drop bubble demo: the ring lights up each action in turn; hovering takes over.
+  var labels = { n: "Redact", w: "Split", e: "To Word", s: "Edit" };
+  var order = ["n", "e", "s", "w"];
+  var orb = document.getElementById("orb");
+  var ring = document.getElementById("ring");
+  function light(dir) {
+    ring.querySelectorAll("[data-dir]").forEach(function (el) { el.classList.toggle("hot", el.getAttribute("data-dir") === dir); });
+    orb.classList.toggle("hot", !!dir);
+    orb.innerHTML = dir ? "<span>" + labels[dir] + "<small>release to start</small></span>" : "<span>Drop on<br>an action</span>";
+  }
+  var step = 0, paused = false;
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduced) setInterval(function () { if (!paused) { light(order[step % 4]); step++; } }, 1600);
+  else light("n");
+  ring.querySelectorAll(".seg").forEach(function (seg) {
+    seg.addEventListener("mouseenter", function () { paused = true; light(seg.getAttribute("data-dir")); });
+    seg.addEventListener("mouseleave", function () { paused = false; });
+  });
+})();
+</script>
+</body>
+</html>

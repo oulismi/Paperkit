@@ -20,6 +20,8 @@ interface Props {
   path: string;
   name: string;
   onChangeFile: () => void;
+  /** Demo mode: approve findings from these sources as they arrive. */
+  autoApprove?: (source: Item["source"]) => boolean;
 }
 
 type Status = { kind: "ok" | "err"; text: string } | null;
@@ -27,7 +29,7 @@ type Filter = "all" | Category;
 
 const ORDER: Category[] = ["names", "addresses", "contact", "ids", "dates", "custom"];
 
-export function RedactScreen({ path, name, onChangeFile }: Props) {
+export function RedactScreen({ path, name, onChangeFile, autoApprove }: Props) {
   const [pages, setPages] = useState<PageSize[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [noText, setNoText] = useState<number[]>([]);
@@ -56,7 +58,9 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
         setNoText(r.pagesWithoutText);
         setOcrPages(r.pagesOcr);
         // Merge rather than replace: AI results may already have arrived.
-        setItems((list) => mergeSuggestions(list, r.suggestions, "pending"));
+        setItems((list) =>
+          mergeSuggestions(list, r.suggestions, "pending").map((i) => (autoApprove?.(i.source) ? { ...i, status: "approved" as const } : i)),
+        );
         setScan({ state: "done", ms: performance.now() - t0 });
       },
       (e) => live && setScan({ state: "failed", error: errorMessage(e) }),

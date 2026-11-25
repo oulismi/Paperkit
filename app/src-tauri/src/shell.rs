@@ -159,9 +159,11 @@ fn create_tray(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {
     let bubble = CheckMenuItem::with_id(app, "bubble", "Show drop bubble", true, settings.bubble_visible, None::<&str>)?;
     let autostart = app.autolaunch().is_enabled().unwrap_or(false);
     let login = CheckMenuItem::with_id(app, "autostart", "Start with the system", true, autostart, None::<&str>)?;
+    let updates = MenuItem::with_id(app, "updates", "Check for updates…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit PaperKit", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&open, &bubble, &login, &separator, &quit])?;
+    let separator2 = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(app, &[&open, &bubble, &login, &separator, &updates, &separator2, &quit])?;
     *app.state::<ShellState>().bubble_item.lock().unwrap_or_else(|e| e.into_inner()) = Some(bubble.clone());
 
     let mut tray = TrayIconBuilder::with_id("paperkit")
@@ -180,6 +182,10 @@ fn create_tray(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {
                 let _ = if enabled { manager.disable() } else { manager.enable() };
                 let _ = login.set_checked(manager.is_enabled().unwrap_or(!enabled));
             }
+            "updates" => {
+                show_main(app);
+                let _ = app.emit_to(MAIN, "paperkit://check-updates", ());
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -195,10 +201,33 @@ fn create_tray(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Demo mode, for screenshots: `--demo=<screen>` opens one screen with the
+/// sample files in `--demo-files=<folder>`. No bubble, no update check, no
+/// first-launch offers, and it runs beside a normal PaperKit.
+#[derive(Debug, Clone, Serialize)]
+pub struct Demo {
+    pub screen: String,
+    pub files: String,
+}
+
+pub fn demo() -> Option<Demo> {
+    let arg = |name: &str| std::env::args().find_map(|a| a.strip_prefix(&format!("--{name}=")).map(str::to_owned));
+    Some(Demo { screen: arg("demo")?, files: arg("demo-files").unwrap_or_default() })
+}
+
+#[tauri::command]
+pub fn demo_request() -> Option<Demo> {
+    demo()
+}
+
 /// Called from `setup`: tray, bubble, and the main window unless started in the background.
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let settings = load_settings(app);
     *app.state::<ShellState>().settings.lock().unwrap_or_else(|e| e.into_inner()) = settings.clone();
+    if demo().is_some() {
+        show_main(app);
+        return Ok(());
+    }
     create_tray(app, &settings)?;
     create_bubble(app, &settings)?;
     if !std::env::args().any(|a| a == BACKGROUND_ARG) {
@@ -259,6 +288,9 @@ pub struct AiOffer {
 /// What the main window should do about the AI model on launch.
 #[tauri::command]
 pub fn ai_offer(app: AppHandle, state: tauri::State<'_, ShellState>) -> AiOffer {
+    if demo().is_some() {
+        return AiOffer { show: false, start_download: false };
+    }
     let requested = take_install_request(&state);
     if crate::commands::model::installed(&app) {
         return AiOffer { show: false, start_download: false };

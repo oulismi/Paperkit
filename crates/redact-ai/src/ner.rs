@@ -55,7 +55,9 @@ pub struct NerModel {
 impl NerModel {
     /// Loads the model. `onnx` is the model file, `tokenizer` its tokenizer.json.
     pub fn load(onnx: &Path, tokenizer: &Path) -> Result<Self, String> {
-        let params = Parameters::default().with_threshold(0.4);
+        // 0.5 (the model's standard): at 0.4 generic words such as "Employee"
+        // came back as people.
+        let params = Parameters::default().with_threshold(0.5);
         let model = GLiNER::<SpanMode>::new(params, RuntimeParameters::default(), tokenizer, onnx).map_err(|e| e.to_string())?;
         Ok(Self { model })
     }

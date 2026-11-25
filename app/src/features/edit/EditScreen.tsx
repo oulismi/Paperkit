@@ -10,6 +10,8 @@ interface Props {
   path: string;
   name: string;
   onChangeFile: () => void;
+  /** Demo mode: changes already placed. */
+  initialItems?: Item[];
 }
 
 type Status = { kind: "ok" | "err"; text: string } | null;
@@ -44,11 +46,11 @@ const describe = (item: Item) => {
   }
 };
 
-export function EditScreen({ path, name, onChangeFile }: Props) {
+export function EditScreen({ path, name, onChangeFile, initialItems }: Props) {
   const [pages, setPages] = useState<PageSize[]>([]);
   const [fields, setFields] = useState<FormField[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<Item[]>(initialItems ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tool, setTool] = useState<Tool>("text");
   const [textSize, setTextSize] = useState(12);

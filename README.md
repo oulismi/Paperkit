@@ -4,7 +4,9 @@ Offline desktop PDF toolkit for Windows, macOS and Linux.
 Drag & drop a PDF, then **Split · Merge · Redact (on-device AI) · Edit · Convert**.
 Nothing is uploaded — all processing, including the AI, runs on the user's computer.
 
-UI mockups: https://claude.ai/artifact/WKtaRobDQMAGFCPSnijk46
+![PaperKit's Redact screen](site/screens/redact.png)
+
+**[Download](https://github.com/oulismi/Paperkit/releases/latest)** · Windows 10/11 · macOS (Apple Silicon) · Linux
 
 ## Project layout
 
@@ -65,7 +67,9 @@ Working now:
 - **Drop bubble**: a small glass orb that stays on top of other windows; drag it anywhere (it
   remembers the spot). Drag a file near it and a ring of four actions opens: release on ↑ Redact,
   ← Split, → To Word, ↓ Edit, or the centre for the full list. Images get "Create PDF".
-- **Tray icon**: open PaperKit, show/hide the bubble, start with the system (off by default), quit.
+- **Tray icon**: open PaperKit, show/hide the bubble, start with the system (off by default), check
+  for updates, quit.
+- **Automatic updates**: checks GitHub releases, asks, installs signed updates and restarts
   Closing the main window keeps PaperKit running in the tray.
 
 ## Prerequisites
@@ -115,7 +119,15 @@ GitHub Actions (`.github/workflows/`):
 - `release.yml`: pushing a tag like `v0.1.0` builds Windows (NSIS + MSI), macOS (Apple Silicon DMG)
   and Linux (AppImage, deb, rpm) installers, standard and offline, into a **draft** release
 
-Builds are not code-signed yet (Windows SmartScreen / macOS Gatekeeper will warn).
+Builds are not code-signed yet (Windows SmartScreen / macOS Gatekeeper will warn). Update signing,
+macOS notarization and Windows signing switch on via GitHub secrets: see
+[docs/SIGNING.md](docs/SIGNING.md).
+
+## Home page
+
+`site/` is the public home page (plain HTML, screenshots in `site/screens/`), published to GitHub
+Pages by `.github/workflows/pages.yml` once the repository is public. Screenshots are captured from
+the real app: `scripts/screenshots.ps1` (Windows) opens each screen in demo mode with the sample files.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical plan.
 
