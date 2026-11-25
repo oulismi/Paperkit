@@ -167,6 +167,9 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .dl span { font-size: 13px; color: var(--muted); }
 .dl .size { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
 .note { margin-top: 24px; font-size: 14px; color: var(--muted); max-width: 80ch; }
+.policy { margin-top: 32px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); display: grid; gap: 10px; max-width: 80ch; }
+.policy h3 { font-family: var(--body); font-size: 16px; font-weight: 600; letter-spacing: 0; }
+.policy p { font-size: 14px; color: var(--ink-2); }
 
 /* ---- FAQ ---- */
 .faq { padding-block: 32px 96px; }
@@ -367,6 +370,13 @@ details p { color: var(--ink-2); margin-top: 10px; max-width: 72ch; }
         </div>
       </div>
       <p class="note" id="release-note">All files, checksums and release notes are on the <a href="https://github.com/oulismi/Paperkit/releases/latest">latest release page</a>. The first releases aren't code-signed yet: on Windows choose "More info" → "Run anyway"; on a Mac, right-click the app and choose Open the first time.</p>
+
+      <div class="policy" id="code-signing">
+        <h3>Code signing policy</h3>
+        <p>Windows code signing: free code signing provided by <a href="https://about.signpath.io">SignPath.io</a>, certificate by <a href="https://signpath.org">SignPath Foundation</a> (application in progress).</p>
+        <p>Every release is built from the public source code by GitHub Actions; nothing is built or signed on a personal computer. Committers, reviewers and release approver: <a href="https://github.com/oulismi">Michail Oulis</a> (maintainer). Each release is approved by the maintainer before it is published.</p>
+        <p><strong>Privacy:</strong> PaperKit does not upload documents or collect personal data, and has no analytics or telemetry. It connects to other systems only to check GitHub for new versions, and to download the AI model from Hugging Face when the user asks for it.</p>
+      </div>
     </div>
   </section>
 
@@ -384,7 +394,7 @@ details p { color: var(--ink-2); margin-top: 10px; max-width: 72ch; }
 
 <footer class="site-foot">
   <div class="wrap">
-    <span>PaperKit · AGPL-3.0 · <a href="https://github.com/oulismi/Paperkit">Source on GitHub</a></span>
+    <span>PaperKit · AGPL-3.0 · <a href="https://github.com/oulismi/Paperkit">Source on GitHub</a> · <a href="#code-signing">Code signing policy</a> · <a href="#privacy">Privacy</a></span>
     <span>Built with <a href="https://mupdf.com/">MuPDF</a>, <a href="https://github.com/tesseract-ocr/tesseract">Tesseract</a>, <a href="https://github.com/urchade/GLiNER">GLiNER</a>, <a href="https://tauri.app/">Tauri</a> and Noto Sans.</span>
   </div>
 </footer>
