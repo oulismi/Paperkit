@@ -50,11 +50,18 @@ Working now:
     national IDs (FR NIR, GR ΑΜΚΑ), labelled IDs (BSN, ΑΦΜ, tax/VAT/passport/case numbers…), dates
   - on-device AI (GLiNER multilingual) for names, addresses and anything described in words
     ("patient name"); downloaded once on first use (~596 MB), then fully offline
+  - scanned pages are read with OCR (Tesseract in MuPDF; English, French, Dutch, Greek data
+    bundled, ~13 MB), so detection and verification work on scans too
   - find-and-redact text, draw boxes, review and approve; saves a new copy with the content
     really removed (MuPDF), then verifies it
 
-Next: OCR for scanned pages; an "offline" installer with the AI model bundled. Edit and Convert
-are placeholders.
+- **Convert**: PDF → Word (DOCX), PNG/JPG images, plain text, searchable PDF (OCR text layer
+  for scanned pages); images (JPG, PNG, TIFF, BMP, GIF) → PDF
+- **Edit**: add text (any of the four languages, embedded Noto Sans), images and signatures,
+  whiteout boxes, highlights; fill form fields (text, checkbox, choice)
+
+Next: installers for Windows, macOS and Linux (incl. an offline one with the AI model bundled),
+then a tray icon with a floating drop target.
 
 ## Prerequisites
 
@@ -74,7 +81,10 @@ npm install
 npm run tauri dev        # opens the desktop app with hot reload
 ```
 
-Sample PDFs with fictional content are in `tests/fixtures/`; regenerate them with
+`npm run dev`/`build` fetch the bundled assets first (OCR language data, Noto Sans), each
+pinned and checked by SHA-256 (`scripts/fetch-*.mjs`).
+
+Sample PDFs with fictional content are in `tests/fixtures/` (including a scanned contract); regenerate them with
 `cargo run -p pdf-core --example sample_pdfs -- tests/fixtures`.
 
 ## Test

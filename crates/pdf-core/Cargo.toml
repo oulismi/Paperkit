@@ -6,10 +6,11 @@ license.workspace = true
 
 [dependencies]
 thiserror = "2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 serde = { version = "1", features = ["derive"] }
 lopdf = "0.47.0"
-# AGPL-3.0. Only PDF support for now; "tesseract" (OCR) and "img" come later.
-mupdf = { version = "0.8.0", default-features = false, features = ["base14-fonts"] }
+# AGPL-3.0. PDF support plus Tesseract OCR (built into MuPDF) for scanned pages.
+mupdf = { version = "0.8.0", default-features = false, features = ["base14-fonts", "tesseract", "docx-output"] }
 
 [dev-dependencies]
 redact-ai = { path = "../redact-ai" }

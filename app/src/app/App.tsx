@@ -5,8 +5,11 @@ import { Home } from "../features/home/Home";
 import { Organizer } from "../features/split-merge/Organizer";
 import { RedactScreen } from "../features/redact/RedactScreen";
 import { RedactStart } from "../features/redact/RedactStart";
+import { ConvertScreen } from "../features/convert/ConvertScreen";
+import { EditScreen } from "../features/edit/EditScreen";
+import { PickFile } from "../components/PickFile";
 import { forget } from "../lib/pdf";
-import { errorMessage, openPdf } from "../lib/tauri";
+import { errorMessage, isImage, openPdf } from "../lib/tauri";
 import { colorFor, newId, type Mode, type PageItem, type SourceFile } from "./model";
 import { Sidebar } from "./Sidebar";
 import { TOOLS, type ToolId } from "./tools";
@@ -20,6 +23,9 @@ export function App() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const [redactTarget, setRedactTarget] = useState<{ path: string; name: string } | null>(null);
+  const [convertTarget, setConvertTarget] = useState<{ path: string; name: string; pageCount: number } | null>(null);
+  const [convertImages, setConvertImages] = useState<string[]>([]);
+  const [editTarget, setEditTarget] = useState<{ path: string; name: string } | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
   const colorIndex = useRef(0);
@@ -30,12 +36,30 @@ export function App() {
     const pdfs = paths.filter((p) => /\.pdf$/i.test(p));
     const problems: string[] = [];
 
-    // On the Redact screen, a dropped or picked file is the one to redact.
-    if (viewRef.current === "redact") {
-      if (pdfs.length === 0) return void (await message("Only PDF files can be redacted.", { title: "Not a PDF", kind: "warning" }));
+    // On the Convert screen: images go to "Create PDF from images", a PDF becomes the file to convert.
+    if (viewRef.current === "convert") {
+      const images = paths.filter(isImage);
+      if (images.length > 0) setConvertImages((list) => [...list, ...images]);
+      if (pdfs.length > 0) {
+        try {
+          const info = await openPdf(pdfs[0]);
+          setConvertTarget({ path: info.path, name: info.name, pageCount: info.pageCount });
+        } catch (e) {
+          await message(errorMessage(e), { title: "Could not open the file", kind: "warning" });
+        }
+      }
+      if (images.length + pdfs.length < paths.length) {
+        await message("Only PDFs and images (JPG, PNG, TIFF, BMP, GIF) can be used here.", { title: "Some files were skipped", kind: "warning" });
+      }
+      return;
+    }
+
+    // On the Redact and Edit screens, a dropped or picked file is the one to work on.
+    if (viewRef.current === "redact" || viewRef.current === "edit") {
+      if (pdfs.length === 0) return void (await message("Only PDF files can be opened here.", { title: "Not a PDF", kind: "warning" }));
       try {
         const info = await openPdf(pdfs[0]);
-        setRedactTarget({ path: info.path, name: info.name });
+        (viewRef.current === "redact" ? setRedactTarget : setEditTarget)({ path: info.path, name: info.name });
       } catch (e) {
         await message(errorMessage(e), { title: "Could not open the file", kind: "warning" });
       }
@@ -73,7 +97,8 @@ export function App() {
   }, []);
 
   const browse = useCallback(async () => {
-    const picked = await open({ multiple: viewRef.current !== "redact", filters: [{ name: "PDF", extensions: ["pdf"] }] });
+    const single = viewRef.current === "redact" || viewRef.current === "convert" || viewRef.current === "edit";
+    const picked = await open({ multiple: !single, filters: [{ name: "PDF", extensions: ["pdf"] }] });
     if (picked) await addPaths(Array.isArray(picked) ? picked : [picked]);
   }, [addPaths]);
 
@@ -154,12 +179,35 @@ export function App() {
           ) : (
             <RedactStart openFiles={files} onPick={(f) => setRedactTarget({ path: f.path, name: f.name })} onBrowse={browse} />
           ))}
+        {view === "edit" &&
+          (editTarget ? (
+            <EditScreen key={editTarget.path} path={editTarget.path} name={editTarget.name} onChangeFile={() => setEditTarget(null)} />
+          ) : (
+            <PickFile
+              title="Edit a PDF"
+              intro="Add text, images or a signature, cover areas in white, highlight, and fill in forms. A new copy is saved; the original stays as it is."
+              icon="edit"
+              openFiles={files}
+              onPick={(f) => setEditTarget({ path: f.path, name: f.name })}
+              onBrowse={browse}
+            />
+          ))}
+        {view === "convert" && (
+          <ConvertScreen
+            file={convertTarget}
+            openFiles={files}
+            onPick={(f) => setConvertTarget({ path: f.path, name: f.name, pageCount: f.pageCount })}
+            onBrowse={browse}
+            images={convertImages}
+            onImages={setConvertImages}
+          />
+        )}
         {soon && (
           <div className="soon-screen">
             <h1>{soon.label} is coming soon</h1>
             <p>{soon.description}.</p>
             <p>
-              This build covers splitting, merging, extracting, reordering and rotating pages, and redaction. {soon.label} is on
+              This build covers splitting, merging, extracting, reordering and rotating pages, redaction and conversion. {soon.label} is on
               the roadmap in docs/ARCHITECTURE.md.
             </p>
           </div>

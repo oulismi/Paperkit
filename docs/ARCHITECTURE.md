@@ -9,7 +9,7 @@
 | PDF engine | MuPDF (AGPL) for redaction and text positions; `lopdf` (MIT) for page operations |
 | AI runtime | ONNX Runtime (CPU)                       |
 | NER model  | GLiNER multilingual v2.1 (Apache-2.0), ONNX fp16, via `gline-rs` + ONNX Runtime |
-| OCR        | Tesseract or PaddleOCR (ONNX)            |
+| OCR        | Tesseract (built into MuPDF), tessdata_fast eng/fra/nld/ell, bundled |
 
 ## How the pieces talk
 
@@ -49,11 +49,19 @@ and metadata are not carried over yet.
    labelled IDs, dates); each match becomes boxes, one per line it spans.
 2. The UI groups repeats of the same text into one item; the user approves
    items, searches for more text, or draws boxes.
-3. `redact_apply`: MuPDF redaction annotations are added and applied (text
-   removed, image pixels blanked, covered line art removed, black boxes drawn),
-   metadata dropped, and the file fully rewritten with garbage collection to a
-   temp file. It is read back: any character under a box → the file is deleted
-   and an error returned. Otherwise it is renamed into place.
+3. `redact_apply`, in two passes. Pass 1: MuPDF redaction annotations are
+   applied *without* black boxes (text removed, image pixels blanked, covered
+   line art removed), metadata dropped, the file fully rewritten with garbage
+   collection, then read back (with OCR for pages without a text layer): any
+   character under a box → error, nothing saved. Pass 2: the black boxes are
+   painted onto the verified copy, which is renamed into place. Verifying
+   before the boxes exist matters for scans: a box on top would hide leftover
+   pixels from OCR (and OCR reads the box itself as junk).
+
+Scanned pages (no text layer) are drawn into MuPDF's PDF-OCR writer at 300 dpi;
+Tesseract's text comes back with positions in the page's own coordinates, so
+detection, boxes and verification work unchanged. Page text is cached per file
+(path + modified time) so the scan, AI pass and searches share one OCR run.
 
 AI detection (`redact_ai_scan`) runs after the rules, in the background: the
 page text is cut into chunks of whole lines (~160 words), GLiNER looks for
@@ -65,6 +73,28 @@ to one revision and checked by SHA-256 (`commands/model.rs`).
 Building MuPDF on Windows needs LLVM (`.cargo/config.toml`) and a patched copy
 of the `mupdf` crate (`third_party/README.md`).
 
+## Convert
+
+`pdf-core::convert`: images via MuPDF rendering + the `image` crate (PNG/JPEG);
+text via the same page-text path as Redact (OCR for scans); DOCX via MuPDF's
+DOCX writer (scanned pages are OCRed first so their text comes through);
+searchable PDF = scanned pages replaced by MuPDF PDF-OCR pages (image + invisible
+text), text pages kept, stitched with `assemble`; images → PDF via MuPDF's PDF
+writer. PDF/A is not offered: real compliance needs output intents, XMP and font
+rules MuPDF doesn't produce. Office → PDF would need LibreOffice (optional add-on, later).
+
+## Edit
+
+`pdf-core::edit`: everything is drawn in page space through the inverse page
+transform, so rotated pages work. Text uses an embedded Noto Sans (Type0,
+Identity-H, full ToUnicode), so it stays selectable and searchable in all four
+languages; glyph IDs come from the font itself. Images via MuPDF's image insert,
+highlights as standard annotations, whiteout as a white rectangle (it hides, it
+does not remove; the UI says so and points to Redact). Forms: MuPDF widgets.
+
+OCR note: MuPDF's Tesseract/Leptonica can't run on two threads at once, so all
+OCR goes through one process-wide lock (`OcrPdf`).
+
 ## Open decisions
 
 - [x] Open source or commercial? → **open source, AGPL-3.0-or-later, MuPDF** (decided 2026-11-25)
@@ -73,7 +103,7 @@ of the `mupdf` crate (`third_party/README.md`).
 
 ## Roadmap
 
-1. **MVP** — drag & drop, thumbnails, split, merge, reorder/rotate ✅ · PDF ↔ images (todo) · keep bookmarks (todo)
-2. **Redact** — manual + search redaction ✅, rule detection ✅, AI model ✅, OCR (todo)
-3. **Edit** — annotations, add text/images, forms
-4. **Convert** — PDF → DOCX, optional Office → PDF
+1. **MVP** — drag & drop, thumbnails, split, merge, reorder/rotate ✅ · PDF ↔ images ✅ (via Convert) · keep bookmarks (todo)
+2. **Redact** — manual + search redaction ✅, rule detection ✅, AI model ✅, OCR ✅
+3. **Edit** — add text/images, whiteout, highlights, forms ✅
+4. **Convert** — PDF → DOCX/images/text/searchable PDF, images → PDF ✅; Office → PDF (optional add-on, later)

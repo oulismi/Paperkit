@@ -62,6 +62,9 @@ export interface PageSize {
 export interface ScanResult {
   pages: PageSize[];
   suggestions: Suggestion[];
+  /** Pages read with OCR (no text layer, probably scanned). */
+  pagesOcr: number[];
+  /** Pages with no text even after OCR. */
   pagesWithoutText: number[];
 }
 
@@ -99,3 +102,65 @@ export function modelDownload(onProgress: (downloaded: number, total: number) =>
 }
 
 export const modelDownloadCancel = () => invoke<void>("model_download_cancel");
+
+// ---- Convert ----
+
+export type ConvertTarget = "docx" | "png" | "jpg" | "txt" | "searchable";
+
+export interface ConvertResult {
+  written: string[];
+  /** Not empty = nothing written: these files exist and overwrite was false. */
+  existing: string[];
+  ocrPages: number[];
+}
+
+export interface ConvertOptions {
+  path: string;
+  target: ConvertTarget;
+  /** The file to write, or for images the folder. */
+  output: string;
+  /** null = all pages */
+  pages: number[] | null;
+  dpi?: number;
+  useOcr: boolean;
+  overwrite: boolean;
+}
+
+export function convertPdf(options: ConvertOptions, onProgress: (done: number, total: number) => void) {
+  const progress = new Channel<{ done: number; total: number }>();
+  progress.onmessage = (p) => onProgress(p.done, p.total);
+  return invoke<ConvertResult>("convert_pdf", { ...options, progress });
+}
+
+export function imagesToPdf(images: string[], output: string, fit: "image" | "a4", onProgress: (done: number, total: number) => void) {
+  const progress = new Channel<{ done: number; total: number }>();
+  progress.onmessage = (p) => onProgress(p.done, p.total);
+  return invoke<void>("images_to_pdf", { images, output, fit, progress });
+}
+
+// Formats MuPDF decodes.
+export const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "tif", "tiff", "bmp", "gif"];
+export const isImage = (path: string) => IMAGE_EXTENSIONS.includes(path.split(".").pop()?.toLowerCase() ?? "");
+
+// ---- Edit ----
+
+export type EditOp =
+  | { kind: "text"; page: number; x: number; y: number; text: string; size: number; color: [number, number, number] }
+  | { kind: "image"; area: Area; path: string }
+  | { kind: "whiteout"; area: Area }
+  | { kind: "highlight"; area: Area; color: [number, number, number] };
+
+export interface FormField {
+  page: number;
+  name: string;
+  kind: "text" | "checkbox" | "radio" | "choice" | "signature" | "button";
+  value: string;
+  readOnly: boolean;
+  area: Area;
+}
+
+export const editInfo = (path: string) => invoke<{ pages: PageSize[]; fields: FormField[] }>("edit_info", { path });
+export const editApply = (path: string, output: string, ops: EditOp[], fields: Record<string, string>) =>
+  invoke<void>("edit_apply", { path, output, ops, fields });
+export const readImage = (path: string) => invoke<ArrayBuffer>("read_image", { path });
+export const editFont = () => invoke<ArrayBuffer>("edit_font");

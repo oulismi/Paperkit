@@ -17,6 +17,8 @@ use std::path::{Path, PathBuf};
 use lopdf::{dictionary, Dictionary, Document, Object, ObjectId};
 use serde::{Deserialize, Serialize};
 
+pub mod convert;
+pub mod edit;
 pub mod redact;
 
 /// Page attributes a page may inherit from its ancestors in the page tree
@@ -42,6 +44,8 @@ pub enum Error {
     OutputIsSource(PathBuf),
     #[error("there is nothing to redact")]
     NothingToRedact,
+    #[error("there are no changes to save")]
+    NothingToDo,
     #[error("redaction check failed: {0} character(s) were still under the boxes, so nothing was saved")]
     RedactionIncomplete(usize),
     #[error("{0}")]
@@ -255,8 +259,11 @@ pub(crate) mod tests_support {
     use lopdf::content::{Content, Operation};
     use lopdf::Stream;
 
+    /// A fresh folder per call, so tests running in parallel never share one.
     pub fn temp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("pdf-core-test-{name}-{}", std::process::id()));
+        static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("pdf-core-test-{name}-{}-{n}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -289,6 +296,37 @@ pub(crate) mod tests_support {
         let info = doc.add_object(dictionary! { "Author" => Object::string_literal("Test Author") });
         doc.trailer.set("Root", catalog);
         doc.trailer.set("Info", info);
+        doc.save(path).unwrap();
+    }
+
+    /// A one-page PDF with an empty text form field named `full_name`.
+    pub fn write_form_pdf(path: &Path) {
+        let mut doc = Document::with_version("1.5");
+        let tree = doc.new_object_id();
+        let page_id = doc.new_object_id();
+        let helv = doc.add_object(dictionary! { "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica" });
+        let field = doc.add_object(dictionary! {
+            "Type" => "Annot", "Subtype" => "Widget", "FT" => "Tx",
+            "T" => Object::string_literal("full_name"), "V" => Object::string_literal(""),
+            "Rect" => vec![100.into(), 700.into(), 400.into(), 724.into()],
+            "P" => page_id, "F" => 4, "DA" => Object::string_literal("/Helv 12 Tf 0 g"),
+        });
+        doc.objects.insert(
+            page_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Page", "Parent" => tree,
+                "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
+                "Annots" => vec![field.into()],
+            }),
+        );
+        doc.objects.insert(tree, Object::Dictionary(dictionary! { "Type" => "Pages", "Kids" => vec![page_id.into()], "Count" => 1 }));
+        let acroform = dictionary! {
+            "Fields" => vec![field.into()],
+            "DA" => Object::string_literal("/Helv 0 Tf 0 g"),
+            "DR" => dictionary! { "Font" => dictionary! { "Helv" => helv } },
+        };
+        let catalog = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => tree, "AcroForm" => acroform });
+        doc.trailer.set("Root", catalog);
         doc.save(path).unwrap();
     }
 }

@@ -31,6 +31,7 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
   const [pages, setPages] = useState<PageSize[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [noText, setNoText] = useState<number[]>([]);
+  const [ocrPages, setOcrPages] = useState<number[]>([]);
   const [scan, setScan] = useState<{ state: "running" } | { state: "done"; ms: number } | { state: "failed"; error: string }>({ state: "running" });
   const [filter, setFilter] = useState<Filter>("all");
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
         if (!live) return;
         setPages(r.pages);
         setNoText(r.pagesWithoutText);
+        setOcrPages(r.pagesOcr);
         // Merge rather than replace: AI results may already have arrived.
         setItems((list) => mergeSuggestions(list, r.suggestions, "pending"));
         setScan({ state: "done", ms: performance.now() - t0 });
@@ -145,10 +147,11 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
 
   const scanLine =
     scan.state === "running"
-      ? "Scanning…"
+      ? "Reading the document (scanned pages take a few seconds each)…"
       : scan.state === "failed"
         ? "Scan failed"
-        : `${pages.length} page${pages.length === 1 ? "" : "s"} · scanned in ${(scan.ms / 1000).toFixed(1)} s`;
+        : `${pages.length} page${pages.length === 1 ? "" : "s"} · scanned in ${(scan.ms / 1000).toFixed(1)} s` +
+          (ocrPages.length > 0 ? ` · ${ocrPages.length === pages.length ? "all pages" : `${ocrPages.length} page${ocrPages.length === 1 ? "" : "s"}`} read with OCR` : "");
 
   return (
     <div className="rd">
@@ -171,10 +174,16 @@ export function RedactScreen({ path, name, onChangeFile }: Props) {
       <div className="rd-body">
         <div className="rd-doc">
           {scan.state === "failed" && <p className="status err">{scan.error}</p>}
+          {ocrPages.length > 0 && (
+            <p className="status warn">
+              {ocrPages.length === pages.length ? "This PDF is scanned" : `Pages ${ocrPages.join(", ")} are scanned`}, so their text was read with
+              OCR. OCR can miss or misread words (handwriting, stamps, poor scans): check those pages yourself and draw boxes over
+              anything it missed.
+            </p>
+          )}
           {noText.length > 0 && (
             <p className="status warn">
-              {noText.length === pages.length ? "This PDF has no text layer" : `Pages ${noText.join(", ")} have no text layer`} — probably scanned
-              images. Automatic detection can't read them yet (OCR is coming); draw boxes over what must go.
+              No text could be read on {noText.length === pages.length ? "any page" : `pages ${noText.join(", ")}`}. Draw boxes over what must go.
             </p>
           )}
           {pages.map((p) => (

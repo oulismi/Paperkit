@@ -24,3 +24,5 @@ Thumbs.db
 .env
 .env.*
 app/public/pdfjs/
+app/src-tauri/resources/tessdata/
+app/src-tauri/resources/fonts/

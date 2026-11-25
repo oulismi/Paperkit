@@ -110,4 +110,25 @@ fn main() {
     let path = dir.join("Employment_Contract.pdf");
     contract().save(&path).unwrap();
     println!("wrote {}", path.display());
+
+    let scanned = dir.join("Scanned_Contract.pdf");
+    scan(&path, &scanned);
+    println!("wrote {}", scanned.display());
+}
+
+/// An image-only copy (150 dpi, greyscale), like a scanner produces: no text layer.
+fn scan(src: &std::path::Path, out: &std::path::Path) {
+    use mupdf::{ColorParams, Colorspace, Document as MuDoc, DocumentWriter, Image, Matrix};
+    let doc = MuDoc::open(src.to_str().unwrap()).unwrap();
+    let page = doc.load_page(0).unwrap();
+    let bounds = page.bounds().unwrap();
+    let scale = 150.0 / 72.0;
+    let pixmap = page.to_pixmap(&Matrix::new_scale(scale, scale), &Colorspace::device_gray(), false, false).unwrap();
+    let image = Image::from_pixmap(&pixmap).unwrap();
+    let mut writer = DocumentWriter::new(out.to_str().unwrap(), "pdf", "compress").unwrap();
+    let device = writer.begin_page(bounds).unwrap();
+    device
+        .fill_image(&image, &Matrix::new_scale(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0), 1.0, ColorParams::default())
+        .unwrap();
+    writer.end_page(device).unwrap();
 }
