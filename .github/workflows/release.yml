@@ -66,9 +66,10 @@ jobs:
           releaseName: PaperKit ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
           releaseBody: |
             **Which file do I need?**
-            - Windows: `…_x64-setup.exe` (or the `.msi`)
-            - macOS (Apple Silicon): `….dmg`
+            - Windows 10/11: `…_windows_x64.exe` (or the `.msi`)
+            - macOS (Apple Silicon): `…_darwin_aarch64.dmg`
             - Linux: `.AppImage`, `.deb` or `.rpm`
+            - The `.app.tar.gz` files are for automatic updates later; you don't need them.
 
             Files ending in `_offline` include the AI model (~600 MB) for computers without internet access.
             The others download it once, the first time AI redaction is used.
